@@ -138,17 +138,16 @@ struct mySimpleShaderProgram
     }
 };
 
-
 struct mesh{
 public:
     GLuint m_VAO;
     GLuint m_VBO;
     GLuint m_EBO;
     std::vector<GLfloat> m_points;
-    std::vector<GLuint> m_indexes;
+    std::vector<GLuint> m_indices;
     mesh(mesh && oth)
         : m_points(std::move(oth.m_points)),
-          m_indexes(std::move(oth.m_indexes))
+          m_indices(std::move(oth.m_indices))
     {
         m_VAO = oth.m_VAO;
         m_VBO = oth.m_VBO;
@@ -158,11 +157,11 @@ public:
         oth.m_EBO = 0;
     }
     mesh(mesh const& oth)
-        : mesh(oth.m_points, oth.m_indexes)
+        : mesh(oth.m_points, oth.m_indices)
     {}
     mesh(std::vector<GLfloat> const& points, std::vector<GLuint> const& indexes
          ,GLenum mode = GL_STATIC_DRAW)
-        :m_points(points), m_indexes(indexes)
+        :m_points(points), m_indices(indexes)
     {
 
         glGenVertexArrays(1, &m_VAO);
@@ -186,8 +185,8 @@ public:
         //Viva la DSA!
         glNamedBufferData(m_VBO, m_points.size()*sizeof(GLfloat),
                           m_points.data(), mode);
-        glNamedBufferData(m_EBO, m_indexes.size()*sizeof(GLuint),
-                          m_indexes.data(), mode);
+        glNamedBufferData(m_EBO, m_indices.size()*sizeof(GLuint),
+                          m_indices.data(), mode);
     }
 
     void bind()
@@ -205,22 +204,13 @@ public:
 };
 
 
-
-
-
-int main()
+int main_()
 {
     //Инициализация GLFW
     glfwInit();
-    //Настройка GLFW
-    //Задается минимальная требуемая версия OpenGL.
-    //Мажорная
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    //Минорная
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-    //Установка профайла для которого создается контекст
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    //Выключение возможности изменения размера окна
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", nullptr, nullptr);
@@ -242,31 +232,6 @@ int main()
     glViewport(0, 0, width, height);
 
     //шейдорыы
-    auto vertShader1 = R"lollypop(
-       #version 330 core
-       layout (location = 0) in vec3 position;
-
-
-       uniform mat4 model;
-       uniform mat4 view;
-       uniform mat4 projection;
-       out float depth;
-       void main()
-       {
-           gl_Position =  projection * view * model * vec4(position, 1.0f);
-            depth = gl_Position.z;
-       }
-    )lollypop";
-    auto fragmShader2 = R"Carthage(
-        #version 330 core
-
-        out vec4 color;
-        in float depth;
-        void main()
-        {
-            color = mix(vec4(0.02f, 0.4f, 0.9f, 0.5f), vec4(0.1f, 0.1f, 0.1f, 0.1f), depth/5);
-        }
-    )Carthage";
 
     while(glGetError() != GL_NO_ERROR)
     {    }//free error queue
@@ -290,9 +255,6 @@ int main()
                   0,4,6,   0,6,2,// ближн увадрат 0 2 4 6
                   1,7,5,   1,3,7 // дальн квадрат 1 3 5 7
               });
-
-
-
 
     struct FPSPointOfView{
         glm::vec3 pos;
@@ -358,12 +320,23 @@ int main()
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetKeyCallback(window,
-    [](GLFWwindow* window, int key, int scancode, int action, int mode){
+        [](GLFWwindow* window, int key, int scancode, int action, int mode){
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
                 glfwSetWindowShouldClose(window, GL_TRUE);
     });
     glm::tvec2<double> cursorPos;
     glm::tvec2<double> lastFrameCursorPos = {0,0};
+
+
+
+    WK4dG::AATesseract myBlock(1);
+    myBlock.position = WK4dG::vec4{-0.5, -0.5, -0.5, -0.5};
+    WK4dG::hyperPlane4 myPlane(WK4dG::vec4{0,0,0,0},
+                               WK4dG::vec4{0,0,0,1} );
+    WK4dG::FPSPointOfView my4dCam;
+    my4dCam.planeImOn  = &myPlane;
+
+    mesh tempMesh{{},{}};
     while(!glfwWindowShouldClose(window))
     {
         //timey-whiney stuff
@@ -410,6 +383,35 @@ int main()
                  << "), yaw: " << myCamera.yaw
                  << ", pitch: " << myCamera.pitch << flush;
         }
+        if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS &&
+           glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
+            myPlane.setNormal(WK4dG::rotationMatrix(WK4dG::axes::y,WK4dG::axes::w,
+                                                    glm::radians(5.f))
+                                *myPlane.getNormal()  );
+        }
+        if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS &&
+           glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
+            myPlane.setNormal(WK4dG::rotationMatrix(WK4dG::axes::y,WK4dG::axes::w,
+                                                    glm::radians(-5.f))
+                                *myPlane.getNormal()  );
+        }
+        if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS &&
+           glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
+            myPlane.setNormal(WK4dG::rotationMatrix(WK4dG::axes::x,WK4dG::axes::w,
+                                                    glm::radians(5.f))
+                                *myPlane.getNormal()  );
+        }
+        if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS &&
+           glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
+            myPlane.setNormal(WK4dG::rotationMatrix(WK4dG::axes::x,WK4dG::axes::w,
+                                                    glm::radians(-5.f))
+                                *myPlane.getNormal()  );
+        }
+
+        vector<vector<WK4dG::vec4>> ans = WK4dG::tesseractCrossSectionByHyperPlane(
+                                            myBlock, myPlane);
+
+
 
         view = glm::rotate(glm::mat4{}, -myCamera.pitch, glm::vec3{1.0f, 0.0f, 0.0f});
         view = glm::rotate(view, -myCamera.yaw, glm::vec3{0.0f, 1.0f, 0.0f});
@@ -420,11 +422,29 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT);
 
+
         glUseProgram(shadr.m_shaderProg);
-        cube.bind();
-        glDrawElements(GL_TRIANGLES, cube.m_indexes.size(), GL_UNSIGNED_INT, 0);
+        WK4dG::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
 
+        for (vector<WK4dG::vec4>& face : ans){
+            tempMesh.m_points.resize(face.size()*3);
+            tempMesh.m_indices.resize(face.size());
+            for (int i=0; i<face.size()*3; i+=3){
+                face[i/3] = tr*face[i/3];
+                tempMesh.m_points[i+0] = face[i/3].y;
+                tempMesh.m_points[i+1] = face[i/3].z;
+                tempMesh.m_points[i+2] = face[i/3].x;
+                tempMesh.m_indices[i+0] = 0;
+                tempMesh.m_indices[i+1] = i/3+1;
+                tempMesh.m_indices[i+2] = i/3+2;
+            }
+            tempMesh.updateBufsInGPU(GL_STREAM_DRAW);
+            tempMesh.bind();
+            glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
+        }
 
+//        cube.bind();
+//        glDrawElements(GL_TRIANGLES, cube.m_indexes.size(), GL_UNSIGNED_INT, 0);
 
         glfwPollEvents();
         glfwSwapBuffers(window);
@@ -444,43 +464,89 @@ int main()
 //using namespace myGeomFunctions;
 //using namespace std;
 
-//void printMatrix (matrix5x5 const& m)
-//{
-//    cout << "\n{";
-//    for (int r=0; r<5; ++r){
-//        cout << "\n\t" << "{";
-//        for (int c=0; c<5; ++c){
-//            cout << m[r][c] << ", ";
-//        }
-//        cout << "}";
-//    }
-//    cout <<"\n}";
-//}
+void printMatrix (WK4dG::matrix5x5 const& m)
+{
+    cout << "\n{";
+    for (int r=0; r<5; ++r){
+        cout << "\n\t" << "{";
+        for (int c=0; c<5; ++c){
+            cout << m[r][c] << ", ";
+        }
+        cout << "}";
+    }
+    cout <<"\n}";
+}
 
-//int main(int argc, char *argv[])
-//{
-//    cout << "Hello World!" << endl;
+int main(int argc, char *argv[])
+{
 
-//    vec4 v(0,0,0,0);
+    //Инициализация GLFW
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-//    matrix5x5 m(1);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", nullptr, nullptr);
+    if (window == nullptr){
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
 
-//    printMatrix(m);
+    glfwMakeContextCurrent(window);
 
-//    m = moveMatrix(vec4(1, 0, 0, 0)) *m;
-//    printMatrix(m);
-//    m = rotationMatrix(axes::x, axes::z, mathPi)*m;
-//    printMatrix(m);
-//    v = m*v;
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK){
+        std::cout << "Failed to initialize GLEW" << std::endl;
+        return -1;
+    }
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    glViewport(0, 0, width, height);
 
-//    cout << mathPi << '\n';
-//    cout << v.x << " "<< v.y << " "<< v.z << " "<< v.w;
+    while(glGetError() != GL_NO_ERROR)
+    {    }//free error queue
 
-//    v = orthogonalToThree(vec4{1,0,0,0}, vec4{0,0,1,0}, vec4{0,0,0,1});
-//    cout << '\n' <<endl<< v.y << endl;
+    mySimpleShaderProgram shadr
+            = mySimpleShaderProgram::fromFile("resources\\vertshader1.vert",
+                                              "resources\\fragmshader1.frag");
+    WK4dG::AATesseract ts{1};
+    ts.position = WK4dG::vec4{-0.5, -0.5, -0.5, -0.5};
 
-//    return 0;
-//}
+    WK4dG::hyperPlane4 pl(WK4dG::vec4(0, 0, 0, 0),
+                          WK4dG::vec4(1,0,0,0));
+    vector<vector<WK4dG::vec4>> faces = WK4dG::tesseractCrossSectionByHyperPlane(
+                ts, pl);
+
+    WK4dG::FPSPointOfView myPOV;
+    myPOV.myFront = WK4dG::vec4(0,0,0,1);
+    myPOV.planeImOn = &pl;
+    auto tr = myPOV.getWorldToHyperplaneLocalTransformMatrix();
+
+    mesh sliceMesh({},{});
+    for (vector<WK4dG::vec4>& face: faces){
+        sliceMesh.m_points.resize(face.size()*3);
+        sliceMesh.m_indices.resize(face.size()*3);
+        for (int i=0; i<face.size()*3; i+=3){
+            face[i/3] = tr*face[i/3];
+            sliceMesh.m_points[i+0] = face[i/3].y;
+            sliceMesh.m_points[i+1] = face[i/3].z;
+            sliceMesh.m_points[i+2] = face[i/3].x;
+
+            sliceMesh.m_indices[i+0]=0;
+            sliceMesh.m_indices[i+1]=i/3+1;
+            sliceMesh.m_indices[i+2]= (i/3)+2;
+        }
+    }
+
+
+    auto v = orthogonalToThree(WK4dG::vec4{1,0,0,0}, WK4dG::vec4{0,0,1,0},
+                               WK4dG::vec4{0,0,0,1});
+    cout << '\n' <<endl<< v.y << endl;
+
+    return 0;
+}
 
 
 

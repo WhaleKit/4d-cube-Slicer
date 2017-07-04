@@ -29,8 +29,7 @@ namespace WK4dG
 //use "using namespace WK4dG" all around the "project"
 constexpr bool fuzzyEqual (float f1, float f2)
 {
-    auto epsi = std::max( std::numeric_limits<float>::epsilon(),
-                          std::numeric_limits<float>::round_error() )*8;//juust in case u now
+    auto epsi = std::numeric_limits<float>::epsilon()*8;//juust in case u now
     return fabs(f2-f1) < epsi;
 }
 
@@ -68,6 +67,17 @@ struct vec4
         case 3: return w;
         default:
             throw std::out_of_range("vec4 has only indexes in range [0, 4)");
+        }
+    }
+    constexpr
+    float& operator[](int i)
+    {
+        switch(i){
+        case 0: return x;
+        case 1: return y;
+        case 2: return z;
+        case 3: return w;
+        default: return *((float*)(nullptr));
         }
     }
     constexpr
@@ -251,6 +261,11 @@ struct hyperPlane4
     {
         return vec4{A,B,C,D};
     }
+    void setNormal(vec4 newNormal)
+    {
+        A = newNormal.x; B = newNormal.y;
+        C = newNormal.z; D = newNormal.w;
+    }
 
     float& at(int i)
     {
@@ -309,8 +324,8 @@ bool dirCodirectedWAxis(directions dir){
     return static_cast<int>(dir)%2 == 1;
 }
 constexpr inline
-directions dirFromAxe(axes axe, bool cosirected= true){
-    return directions(static_cast<int>(axe)*2 + cosirected);
+directions dirFromAxe(axes axe, bool codirected= true){
+    return directions(static_cast<int>(axe)*2 + codirected);
 }
 constexpr
 vec4 unitVec(axes axe)
@@ -350,12 +365,12 @@ struct AACube
     {}
     constexpr
     AACube(vec4 dims, vec4 pos)
-        :dimentions({1,1,1, 0}), position(pos)
+        :dimentions({dims[0],dims[1],dims[2],dims[3]}),
+          position(pos)
     {
         int i=0;
-        for (; i<3; ++i){
-            dimentions[i] = dims[i];
-            if ( fuzzyEqual(pos[i], 0) ){
+        for (; i<4; ++i){
+            if ( fuzzyEqual(dims[i], 0) ){
                 perpendicularTo = axes(i);
                 dimentions[i] = 0;
                 break;
@@ -583,7 +598,16 @@ vec4 operator *(matrix5x5 const& m, vec4 const& v);
 //в тот, что ей передан
 //переданные вектора должны быть ортогональными, иметь длину 1
 inline
-matrix5x5 toNewBasisRotationMatrix(vec4 va0, vec4 va1, vec4 va2, vec4 va3);
+matrix5x5 toNewBasisRotationMatrix(vec4 va0, vec4 va1, vec4 va2, vec4 va3)
+{
+    return matrix5x5{
+        {va0[0], va1[0], va2[0], va3[0], 0},
+        {va0[1], va1[1], va2[1], va3[1], 0},
+        {va0[2], va1[2], va2[2], va3[2], 0},
+        {va0[3], va1[3], va2[3], va3[3], 0},
+        {     0,      0,      0,      0, 1}
+    };
+}
 //создает матрицу поворота, такую, что повернет переданный функции
 //базис в i j k l
 //переданные вектора должны быть ортогональными, иметь длину 1
@@ -595,7 +619,7 @@ struct FPSPointOfView
 {
     hyperPlane4 *planeImOn;
     vec4 myCoord;
-    static constexpr vec4 myUp= vec4{0,0,1,0};
+    static constexpr vec4 myUp = {0,0,1,0};
     vec4 myFront=vec4{1,0,0,0};
     float myPitch; //agnle in radians
     inline
