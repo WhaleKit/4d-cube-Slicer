@@ -806,8 +806,6 @@ struct SpaceSimPointOfView
     }
 };
 
-
-
 }
 
 #endif // MYGEOMFUNCTIONS_H

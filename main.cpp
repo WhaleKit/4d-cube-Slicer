@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cmath>
 #include <exception>
+#include <algorithm>
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -204,6 +205,8 @@ public:
 };
 
 
+
+
 int main()
 {
     //Инициализация GLFW
@@ -310,9 +313,9 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
-//    glEnable(GL_CULL_FACE);
-//    glFrontFace(GL_CCW);
-//    glCullFace(GL_FRONT);
+    glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+    glCullFace(GL_FRONT);
 
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
@@ -331,8 +334,6 @@ int main()
 
     WK4dG::AATesseract myBlock(1);
     myBlock.position = WK4dG::vec4{-0.5, -0.5, -0.5, -0.5};
-//    WK4dG::hyperPlane4 myPlane(WK4dG::vec4{0,0,0,0},
-//                               WK4dG::vec4{0,0,0,1} );
     WK4dG::FPSPointOfView my4dCam;
 
     mesh tempMesh{{},{}};
@@ -371,7 +372,7 @@ int main()
             anglespeed = 0.1;
         }else{
             speed = 0.01;
-            anglespeed = 0.001;
+            anglespeed = 0.03;
         }
 
         if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
@@ -432,8 +433,66 @@ int main()
         }
         vector<vector<WK4dG::vec4>> ans = WK4dG::tesseractCrossSectionByHyperPlane(
                                             myBlock, my4dCam.planeImOn);
+        WK4dG::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
+        glm::vec3 figCenter{0,0,0};
+        vector<glm::vec3> faceCenters;
+        faceCenters.reserve(ans.size());
+        {//calculating center of slice figure and individual faces
+            int div=0;
+            for (vector<WK4dG::vec4>& face: ans){
+                glm::vec3 faceCenter{0,0,0};
+                int fdiv=0;
+                for (WK4dG::vec4& vert: face){
+                    vert = tr*vert;
+                    ++fdiv;
+                    faceCenter+=glm::vec3{vert.x, vert.w,vert.z};
+                }
+                faceCenter/=fdiv;
+                figCenter+=faceCenter;
+                ++div;
+                faceCenters.push_back(faceCenter);
+            }
+            if (!WK4dG::fuzzyEqual(figCenter.x, 0)
+                    &&!WK4dG::fuzzyEqual(figCenter.y, 0)
+                    &&!WK4dG::fuzzyEqual(figCenter.z, 0)){
+                figCenter /= div;
+            }
+        }
+        {//sorting verticles in faces to make the go CCW
+            std::vector<std::pair<float, glm::vec3>> angsVerts;
+            angsVerts.reserve(6);
+            for (int i=0; i < ans.size(); ++i){
+                angsVerts.resize(0);
+                //glm::vec3 const& fvert = ans[i];
+                WK4dG::vec4 const& b = ans[i][0];
+                auto ang = [&](WK4dG::vec4 const& a){
+                    glm::vec3 faceCn = faceCenters[i];
+                    glm::vec3 lFigCn = figCenter-faceCn;
+                    glm::vec3 la = {a.x-faceCn.x, a.y-faceCn.y, a.z-faceCn.z};
+                    glm::vec3 lb = {b.x-faceCn.x, b.y-faceCn.y, b.z-faceCn.z};
 
+                    if (glm::dot(glm::cross(la, lb), lFigCn)>0){
+                        return std::acos(glm::dot(la, lb));
+                    }else{
+                        return 2*glm::pi<float>() - std::acos(glm::dot(la, lb));
+                    }
+                };
+                for (WK4dG::vec4& vert: ans[i]){
+                    angsVerts.push_back(std::make_pair(ang(vert),
+                                glm::vec3{vert.x, vert.y, vert.z}));
+                }
+                std::sort(angsVerts.begin(), angsVerts.end(),
+                    [](auto const& f, auto const& s)->bool{
+                        return f.first > s.first;
+                    });
+                for (int j=0; j<ans[i].size(); ++j){
+                    glm::vec3& v= angsVerts[j].second;
+                    ans[i][j] = WK4dG::vec4{v.x, v.y, v.z, 0};
+                }
 
+            }
+
+        }
 
         view = glm::rotate(glm::mat4{}, -myCamera.pitch, glm::vec3{1.0f, 0.0f, 0.0f});
         view = glm::rotate(view, -myCamera.yaw, glm::vec3{0.0f, 1.0f, 0.0f});
@@ -446,16 +505,18 @@ int main()
 
 
         glUseProgram(shadr.m_shaderProg);
-        WK4dG::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
-
         for (vector<WK4dG::vec4>& face : ans){
             tempMesh.m_points.resize(face.size()*3);
             tempMesh.m_indices.resize((face.size()-2)*3);
             for (size_t i=0; i<face.size()*3; i+=3){
-                face[i/3] = tr*face[i/3];
+                //7face[i/3] = tr*face[i/3];
                 tempMesh.m_points[i+0] = face[i/3].y;
                 tempMesh.m_points[i+1] = face[i/3].z;
                 tempMesh.m_points[i+2] = face[i/3].x;
+                if (!WK4dG::fuzzyEqual(face[i/3].w, 0)
+                        && !std::isnan(face[i/3].w)){
+                    cout << "f "<<face[i/3].w<<" ";
+                }
             }
             for (size_t i=0; i<(face.size()-2)*3; i+=3){
                 tempMesh.m_indices[i+0] = 0;
