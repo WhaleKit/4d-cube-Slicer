@@ -69,8 +69,8 @@ bool WK4dG::plainIntersectsLineSegment(const WK4dG::vec4 &p1, const WK4dG::vec4 
 {
     //this is the 4d-space hyperplane equation with dots 1 and 2 coordinates
     //substituted in it
-    bool p1Side = pl.A*p1.x + pl.B*p1.x + pl.C*p1.z + pl.D*p1.w + pl.E >= 0;
-    bool p2Side = pl.A*p2.x + pl.B*p2.x + pl.C*p2.z + pl.D*p2.w + pl.E > 0;
+    bool p1Side = pl.A*p1.x + pl.B*p1.y + pl.C*p1.z + pl.D*p1.w + pl.E >= 0;
+    bool p2Side = pl.A*p2.x + pl.B*p2.y + pl.C*p2.z + pl.D*p2.w + pl.E > 0;
     return p1Side != p2Side; //if dots at the different sides of plane, then
     //line segment connecting these points intersects plane
 }
@@ -158,20 +158,11 @@ WK4dG::vec4 WK4dG::findIntersectionPoint(const WK4dG::vec4 &p1, const WK4dG::vec
 //    return result;
 //}
 
-//WK4dG::matrix5x5 WK4dG::toNewBasisRotationMatrix(WK4dG::vec4 va0, WK4dG::vec4 va1,
-//                                                 WK4dG::vec4 va2, WK4dG::vec4 va3)
-//{
-//    return matrix5x5{
-//        {va0[0], va1[0], va2[0], va3[0], 0},
-//        {va0[1], va1[1], va2[1], va3[1], 0},
-//        {va0[2], va1[2], va2[2], va3[2], 0},
-//        {va0[3], va1[3], va2[3], va3[3], 0},
-//        {     0,      0,      0,      0, 1}
-//    };
-//}
 
 WK4dG::matrix5x5 WK4dG::fromBasisToStandartRotationMatrix(WK4dG::vec4 va0, WK4dG::vec4 va1, WK4dG::vec4 va2, WK4dG::vec4 va3)
 {
+    matrix5x5 result;
+    result[5][5]=1;
     float det =
             va0[0]*va1[1]*va2[2]*va3[3] - va0[0]*va1[1]*va2[3]*va3[2] - va0[0]*va1[2]*va2[1]*va3[3] +
             va0[0]*va1[2]*va2[3]*va3[1] + va0[0]*va1[3]*va2[1]*va3[2] - va0[0]*va1[3]*va2[2]*va3[1] -
@@ -181,56 +172,38 @@ WK4dG::matrix5x5 WK4dG::fromBasisToStandartRotationMatrix(WK4dG::vec4 va0, WK4dG
             va0[2]*va1[1]*va2[3]*va3[0] + va0[2]*va1[3]*va2[0]*va3[1] - va0[2]*va1[3]*va2[1]*va3[0] -
             va0[3]*va1[0]*va2[1]*va3[2] + va0[3]*va1[0]*va2[2]*va3[1] + va0[3]*va1[1]*va2[0]*va3[2] -
             va0[3]*va1[1]*va2[2]*va3[0] - va0[3]*va1[2]*va2[0]*va3[1] + va0[3]*va1[2]*va2[1]*va3[0];
-    matrix5x5 result;
-    result[4][4]=1;
-    result[0][0] =
-            ( va1[1]*va2[2]*va3[3] - va1[1]*va2[3]*va3[2] - va1[2]*va2[1]*va3[3] +
-            va1[2]*va2[3]*va3[1] + va1[3]*va2[1]*va3[2] - va1[3]*va2[2]*va3[1] )/det;
-    result[0][1] =
-            ( -va1[0]*va2[2]*va3[3] + va1[0]*va2[3]*va3[2] + va1[2]*va2[0]*va3[3] -
-            va1[2]*va2[3]*va3[0] - va1[3]*va2[0]*va3[2] + va1[3]*va2[2]*va3[0] )/det;
-    result[0][2] =
-            ( va1[0]*va2[1]*va3[3] - va1[0]*va2[3]*va3[1] - va1[1]*va2[0]*va3[3] +
-            va1[1]*va2[3]*va3[0] + va1[3]*va2[0]*va3[1] - va1[3]*va2[1]*va3[0] )/det;
-    result[0][3] =
-            ( -va1[0]*va2[1]*va3[2] + va1[0]*va2[2]*va3[1] + va1[1]*va2[0]*va3[2] -
-            va1[1]*va2[2]*va3[0] - va1[2]*va2[0]*va3[1] + va1[2]*va2[1]*va3[0] )/det;
-    result[1][0] =
-            ( -va0[1]*va2[2]*va3[3] + va0[1]*va2[3]*va3[2] + va0[2]*va2[1]*va3[3] -
-            va0[2]*va2[3]*va3[1] - va0[3]*va2[1]*va3[2] + va0[3]*va2[2]*va3[1] )/det;
-    result[1][1] =
-            ( va0[0]*va2[2]*va3[3] - va0[0]*va2[3]*va3[2] - va0[2]*va2[0]*va3[3] +
-            va0[2]*va2[3]*va3[0] + va0[3]*va2[0]*va3[2] - va0[3]*va2[2]*va3[0] )/det;
-    result[1][2] =
-            ( -va0[0]*va2[1]*va3[3] + va0[0]*va2[3]*va3[1] + va0[1]*va2[0]*va3[3] -
-            va0[1]*va2[3]*va3[0] - va0[3]*va2[0]*va3[1] + va0[3]*va2[1]*va3[0] )/det;
-    result[1][3] =
-            ( va0[0]*va2[1]*va3[2] - va0[0]*va2[2]*va3[1] - va0[1]*va2[0]*va3[2] +
-            va0[1]*va2[2]*va3[0] + va0[2]*va2[0]*va3[1] - va0[2]*va2[1]*va3[0] )/det;
-    result[2][0] =
-            ( va0[1]*va1[2]*va3[3] - va0[1]*va1[3]*va3[2] - va0[2]*va1[1]*va3[3] +
-            va0[2]*va1[3]*va3[1] + va0[3]*va1[1]*va3[2] - va0[3]*va1[2]*va3[1] )/det;
-    result[2][1] =
-            ( -va0[0]*va1[2]*va3[3] + va0[0]*va1[3]*va3[2] + va0[2]*va1[0]*va3[3] -
-            va0[2]*va1[3]*va3[0] - va0[3]*va1[0]*va3[2] + va0[3]*va1[2]*va3[0] )/det;
-    result[2][2] =
-            ( va0[0]*va1[1]*va3[3] - va0[0]*va1[3]*va3[1] - va0[1]*va1[0]*va3[3] +
-            va0[1]*va1[3]*va3[0] + va0[3]*va1[0]*va3[1] - va0[3]*va1[1]*va3[0] )/det;
-    result[2][3] =
-            ( -va0[0]*va1[1]*va3[2] + va0[0]*va1[2]*va3[1] + va0[1]*va1[0]*va3[2] -
-            va0[1]*va1[2]*va3[0] - va0[2]*va1[0]*va3[1] + va0[2]*va1[1]*va3[0] )/det;
-    result[3][0] =
-            ( -va0[1]*va1[2]*va2[3] + va0[1]*va1[3]*va2[2] + va0[2]*va1[1]*va2[3] -
-            va0[2]*va1[3]*va2[1] - va0[3]*va1[1]*va2[2] + va0[3]*va1[2]*va2[1] )/det;
-    result[3][1] =
-            ( va0[0]*va1[2]*va2[3] - va0[0]*va1[3]*va2[2] - va0[2]*va1[0]*va2[3] +
-            va0[2]*va1[3]*va2[0] + va0[3]*va1[0]*va2[2] - va0[3]*va1[2]*va2[0] )/det;
-    result[3][2] =
-            ( -va0[0]*va1[1]*va2[3] + va0[0]*va1[3]*va2[1] + va0[1]*va1[0]*va2[3] -
-            va0[1]*va1[3]*va2[0] - va0[3]*va1[0]*va2[1] + va0[3]*va1[1]*va2[0] )/det;
-    result[3][3] =
-            ( va0[0]*va1[1]*va2[2] - va0[0]*va1[2]*va2[1] - va0[1]*va1[0]*va2[2] +
-            va0[1]*va1[2]*va2[0] + va0[2]*va1[0]*va2[1] - va0[2]*va1[1]*va2[0] )/det;
+    result[0][0] = ( va1[1]*va2[2]*va3[3] - va1[1]*va2[3]*va3[2] - va1[2]*va2[1]*va3[3] +
+       va1[2]*va2[3]*va3[1] + va1[3]*va2[1]*va3[2] - va1[3]*va2[2]*va3[1] )/det;
+    result[0][1] = ( -va1[0]*va2[2]*va3[3] + va1[0]*va2[3]*va3[2] + va1[2]*va2[0]*va3[3] -
+       va1[2]*va2[3]*va3[0] - va1[3]*va2[0]*va3[2] + va1[3]*va2[2]*va3[0] )/det;
+    result[0][2] = ( va1[0]*va2[1]*va3[3] - va1[0]*va2[3]*va3[1] - va1[1]*va2[0]*va3[3] +
+       va1[1]*va2[3]*va3[0] + va1[3]*va2[0]*va3[1] - va1[3]*va2[1]*va3[0] )/det;
+    result[0][3] = ( -va1[0]*va2[1]*va3[2] + va1[0]*va2[2]*va3[1] + va1[1]*va2[0]*va3[2] -
+       va1[1]*va2[2]*va3[0] - va1[2]*va2[0]*va3[1] + va1[2]*va2[1]*va3[0] )/det;
+    result[1][0] = ( -va0[1]*va2[2]*va3[3] + va0[1]*va2[3]*va3[2] + va0[2]*va2[1]*va3[3] -
+       va0[2]*va2[3]*va3[1] - va0[3]*va2[1]*va3[2] + va0[3]*va2[2]*va3[1] )/det;
+    result[1][1] = ( va0[0]*va2[2]*va3[3] - va0[0]*va2[3]*va3[2] - va0[2]*va2[0]*va3[3] +
+       va0[2]*va2[3]*va3[0] + va0[3]*va2[0]*va3[2] - va0[3]*va2[2]*va3[0] )/det;
+    result[1][2] = ( -va0[0]*va2[1]*va3[3] + va0[0]*va2[3]*va3[1] + va0[1]*va2[0]*va3[3] -
+       va0[1]*va2[3]*va3[0] - va0[3]*va2[0]*va3[1] + va0[3]*va2[1]*va3[0] )/det;
+    result[1][3] = ( va0[0]*va2[1]*va3[2] - va0[0]*va2[2]*va3[1] - va0[1]*va2[0]*va3[2] +
+       va0[1]*va2[2]*va3[0] + va0[2]*va2[0]*va3[1] - va0[2]*va2[1]*va3[0] )/det;
+    result[2][0] = ( va0[1]*va1[2]*va3[3] - va0[1]*va1[3]*va3[2] - va0[2]*va1[1]*va3[3] +
+       va0[2]*va1[3]*va3[1] + va0[3]*va1[1]*va3[2] - va0[3]*va1[2]*va3[1] )/det;
+    result[2][1] = ( -va0[0]*va1[2]*va3[3] + va0[0]*va1[3]*va3[2] + va0[2]*va1[0]*va3[3] -
+       va0[2]*va1[3]*va3[0] - va0[3]*va1[0]*va3[2] + va0[3]*va1[2]*va3[0] )/det;
+    result[2][2] = ( va0[0]*va1[1]*va3[3] - va0[0]*va1[3]*va3[1] - va0[1]*va1[0]*va3[3] +
+       va0[1]*va1[3]*va3[0] + va0[3]*va1[0]*va3[1] - va0[3]*va1[1]*va3[0] )/det;
+    result[2][3] = ( -va0[0]*va1[1]*va3[2] + va0[0]*va1[2]*va3[1] + va0[1]*va1[0]*va3[2] -
+       va0[1]*va1[2]*va3[0] - va0[2]*va1[0]*va3[1] + va0[2]*va1[1]*va3[0] )/det;
+    result[3][0] = ( -va0[1]*va1[2]*va2[3] + va0[1]*va1[3]*va2[2] + va0[2]*va1[1]*va2[3] -
+       va0[2]*va1[3]*va2[1] - va0[3]*va1[1]*va2[2] + va0[3]*va1[2]*va2[1] )/det;
+    result[3][1] = ( va0[0]*va1[2]*va2[3] - va0[0]*va1[3]*va2[2] - va0[2]*va1[0]*va2[3] +
+       va0[2]*va1[3]*va2[0] + va0[3]*va1[0]*va2[2] - va0[3]*va1[2]*va2[0] )/det;
+    result[3][2] = ( -va0[0]*va1[1]*va2[3] + va0[0]*va1[3]*va2[1] + va0[1]*va1[0]*va2[3] -
+       va0[1]*va1[3]*va2[0] - va0[3]*va1[0]*va2[1] + va0[3]*va1[1]*va2[0] )/det;
+    result[3][3] = ( va0[0]*va1[1]*va2[2] - va0[0]*va1[2]*va2[1] - va0[1]*va1[0]*va2[2] +
+       va0[1]*va1[2]*va2[0] + va0[2]*va1[0]*va2[1] - va0[2]*va1[1]*va2[0] )/det;
     return result;
     //я не китаец! это все кодогенерация, честно!
 }

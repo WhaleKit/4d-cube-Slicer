@@ -111,6 +111,17 @@ struct vec4
     {
         return std::sqrt(x*x+y*y+z*z+w*w);
     }
+    inline constexpr
+    float len() const
+    {
+        return mod();
+    }
+    inline constexpr
+    float dotPr(vec4 const& oth)
+    {
+        return x*oth.x + y*oth.y + z*oth.z + w*oth.w;
+    }
+
     constexpr
     vec4 normazized() const&
     {
@@ -126,6 +137,21 @@ struct vec4
     void normazize()
     {
         (*this)/=mod();
+    }
+    constexpr
+    vec4 vecProjectionOn(vec4 const& b)
+    {
+        return b*(this->dotPr(b)/std::pow(b.mod(), 2));
+    }
+    constexpr
+    float scalProjectionOn(vec4 const& b)
+    {
+        return this->dotPr(b)/b.mod();
+    }
+    inline vec4 rotatedTowardAnother(vec4 const& s, float angle)
+    {
+        return (*this)*std::cos(angle) +
+                s*std::sin(angle);
     }
     constexpr
     vec4& operator+=(vec4 const& oth)
@@ -617,15 +643,26 @@ matrix5x5 fromBasisToStandartRotationMatrix(vec4 va0, vec4 va1, vec4 va2, vec4 v
 
 struct FPSPointOfView
 {
-    hyperPlane4 *planeImOn;
+    hyperPlane4 planeImOn=hyperPlane4(vec4(0,0,0,0), vec4(0,0,0,1));
     vec4 myCoord;
     static constexpr vec4 myUp = {0,0,1,0};
     vec4 myFront=vec4{1,0,0,0};
     float myPitch; //agnle in radians
-    inline
+    char times=0;
+    //inline
     vec4 getMyRigth() const
     {
-        return orthogonalToThree(planeImOn->getNormal(),myUp, myFront).normazized();
+        vec4 result = orthogonalToThree(planeImOn.getNormal(),
+                                        myUp, myFront);
+        for (int i=2; result.isZeroVec(); i*=64){
+            if(i<=0){
+                assert (false);
+            }
+            result = orthogonalToThree(planeImOn.getNormal()*i,
+                                           myUp*i, myFront*i);
+        }
+        return result.normazized();
+
     }
     inline
     vec4 myViewDirection() const
@@ -636,37 +673,109 @@ struct FPSPointOfView
     void rotateForwardUp(float f)
     {
         //differs from othera due to the fact, that it's not a spasesim:
-        //this one ratetion is gimgle-lockable
+        //this one rotation is gimgle-lockable
         myPitch += f;
         myPitch = std::min(myPitch, static_cast<float>( mathPi/2) );
         myPitch = std::max(myPitch, static_cast<float>(-mathPi/2) );
     }
     void rotateForwardRight(float ang)
     {
-        vec4 newF;
-        newF = std::cos(ang)*myFront +
-                std::sin(ang)*getMyRigth();
+        vec4 newF = myFront.rotatedTowardAnother(getMyRigth(), ang);
+        myFront = newF;
+    }
+    void rotateRightAna (float ang)
+    {
+        vec4 newA = planeImOn.getNormal().rotatedTowardAnother(getMyRigth(), -ang);
+        planeImOn = hyperPlane4(myCoord, newA);
+    }
+    void rotateForwardAna(float ang)
+    {
+        vec4 newF = myFront.rotatedTowardAnother(planeImOn.getNormal(), ang);
+        vec4 newA = planeImOn.getNormal().rotatedTowardAnother(myFront, -ang);
+        myFront = newF;
+        planeImOn = hyperPlane4(myCoord, newA);
+    }
+    matrix5x5 getWorldToHyperplaneLocalTransformMatrix() const
+    {
+        //матрица. смещаем. поворачиваем для нового базиса.
+        //поворачиваем для pitch
+        matrix5x5 transform = moveMatrix(-myCoord);
+//        transform = toNewBasisRotationMatrix(myFront, getMyRigth(), myUp
+//                        ,planeImOn.getNormal().normazized())*transform;
+        transform = fromBasisToStandartRotationMatrix(myFront, getMyRigth(), myUp
+                        ,planeImOn.getNormal().normazized())*transform;
+        return transform;
+    }
+    matrix5x5 getHyperplaneLocalToWorldTransformMatrix() const
+    {
+        matrix5x5 transform = fromBasisToStandartRotationMatrix(myFront, getMyRigth(), myUp
+                                                ,planeImOn.getNormal().normazized());
+        transform = moveMatrix(myCoord)*transform;
+        return transform;
+    }
+    void normalize()
+    {
+        myFront -= myFront.vecProjectionOn(myUp);
+        vec4 newA = planeImOn.getNormal();
+        newA -= newA.vecProjectionOn(myUp);
+        newA -= newA.vecProjectionOn(myFront);
+        myFront.normazize();
+        planeImOn = hyperPlane4(myCoord, newA.normazized());
+    }
+};
+
+struct SpaceSimPointOfView
+{
+    hyperPlane4 planeImOn;
+    vec4 myCoord = {0,0,0,0};
+    vec4 myUp = {0,0,1,0};
+    vec4 myFront=vec4{1,0,0,0};
+
+    inline
+    vec4 getMyRigth() const
+    {
+        return orthogonalToThree(planeImOn.getNormal(),myUp, myFront).normazized();
+    }
+    inline
+    vec4 myViewDirection() const
+    {
+        return myFront;
+    }
+    void rotateForwardUp(float ang)
+    {
+        //differs from othera due to the fact, that it's not a spasesim:
+        //this one rotation is gimgle-lockable
+        vec4 newF = myFront.rotatedTowardAnother(myUp, ang);
+        vec4 newU = myUp.rotatedTowardAnother(myFront, -ang);
+        myUp   = newU;
+        myFront= newF;
+    }
+    void rotateForwardRight(float ang)
+    {
+        vec4 newF = myFront.rotatedTowardAnother(getMyRigth(), ang);
         myFront = newF;
     }
     //2 following functions return new plane normal vector
     //il concider changing hyperplane's normal directly instead
-    vec4 rotateRightAna (float ang)
+    void rotateRightAna (float ang)
     {
         vec4 newA;
-        newA = std::sin(ang)*planeImOn->getNormal() +
-                (-std::cos(ang)*getMyRigth());
-        return newA;
+        newA = planeImOn.getNormal().rotatedTowardAnother(getMyRigth(), -ang);
+        planeImOn = hyperPlane4(myCoord, newA);
     }
-    vec4 rotateForwardAna(float ang)
+    void rotateForwardAna(float ang)
     {
-        vec4 newF;
-        vec4 newA;
-        newF = std::cos(ang)*myFront +
-                std::sin(ang)*getMyRigth();
-        newA = std::sin(ang)*planeImOn->getNormal() +
-                (-std::cos(ang)*myFront);
+        vec4 newF = myFront.rotatedTowardAnother(planeImOn.getNormal(), ang);
+        vec4 newA = planeImOn.getNormal().rotatedTowardAnother(myFront, -ang);
         myFront = newF;
-        return newA;
+        planeImOn = hyperPlane4(myCoord, newA);
+    }
+    void rotateUpAna(float ang)
+    {
+        vec4 newUp = myUp.rotatedTowardAnother(planeImOn.getNormal(), ang);
+        vec4 newA = planeImOn.getNormal().rotatedTowardAnother(myUp, -ang);
+        myUp = newUp;
+        planeImOn = hyperPlane4(myCoord, newA);
     }
 
     matrix5x5 getWorldToHyperplaneLocalTransformMatrix() const
@@ -675,40 +784,27 @@ struct FPSPointOfView
         //поворачиваем для pitch
         matrix5x5 transform = moveMatrix(-myCoord);
         transform = toNewBasisRotationMatrix(myFront, getMyRigth(), myUp
-                        ,planeImOn->getNormal().normazized())*transform;
-        return transform;
-    }
-    matrix5x5 getWorldToViewTransformMatrix() const
-    {
-        matrix5x5 transform = moveMatrix(-myCoord);
-        transform = toNewBasisRotationMatrix(myFront, getMyRigth(), myUp
-                        ,planeImOn->getNormal().normazized())*transform;
-        transform = rotationMatrix(axes::x, axes::z, myPitch) * transform;
+                        ,planeImOn.getNormal().normazized())*transform;
         return transform;
     }
     matrix5x5 getHyperplaneLocalToWorldTransformMatrix() const
     {
         matrix5x5 transform = fromBasisToStandartRotationMatrix(myFront, getMyRigth(), myUp
-                                                ,planeImOn->getNormal().normazized());
+                                                ,planeImOn.getNormal().normazized());
         transform = moveMatrix(myCoord)*transform;
         return transform;
     }
-
-
     void normalize()
     {
-        myCoord.w = (planeImOn->A*myCoord.x+planeImOn->B*myCoord.y +
-                     planeImOn->C*myCoord.z + planeImOn->E) / planeImOn->D;
-        myFront.w = (planeImOn->A*(myCoord.x+myFront.x) +
-                     planeImOn->B*(myCoord.y+myFront.y) +
-                     planeImOn->C*(myCoord.z+myFront.z) +
-                     + planeImOn->E) / planeImOn->D - myCoord.w;
+        myUp -= myUp.vecProjectionOn(myFront);
+        vec4 newA = planeImOn.getNormal();
+        newA -= newA.vecProjectionOn(myUp);
+        newA -= newA.vecProjectionOn(myFront);
+        myUp.normazize();
         myFront.normazize();
+        planeImOn = hyperPlane4(myCoord, newA.normazized());
     }
-
 };
-
-
 
 
 

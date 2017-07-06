@@ -204,7 +204,7 @@ public:
 };
 
 
-int main_()
+int main()
 {
     //Инициализация GLFW
     glfwInit();
@@ -331,12 +331,13 @@ int main_()
 
     WK4dG::AATesseract myBlock(1);
     myBlock.position = WK4dG::vec4{-0.5, -0.5, -0.5, -0.5};
-    WK4dG::hyperPlane4 myPlane(WK4dG::vec4{0,0,0,0},
-                               WK4dG::vec4{0,0,0,1} );
+//    WK4dG::hyperPlane4 myPlane(WK4dG::vec4{0,0,0,0},
+//                               WK4dG::vec4{0,0,0,1} );
     WK4dG::FPSPointOfView my4dCam;
-    my4dCam.planeImOn  = &myPlane;
 
     mesh tempMesh{{},{}};
+    tempMesh.m_indices.reserve(30);
+    tempMesh.m_points.reserve(30);
     while(!glfwWindowShouldClose(window))
     {
         //timey-whiney stuff
@@ -351,65 +352,86 @@ int main_()
         myCamera.yaw += -cursorMovement.x/1000;
         myCamera.pitch += -cursorMovement.y/1000;
 
-        float speed = 0.01;
-        if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
-            speed = 0.1;
-        }else{
-            speed = 0.01;
-        }
-
-        if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
-            myCamera.moveForward(speed);
-        }
-        if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS){
-            myCamera.moveForward(-speed);
-        }
-        if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-            myCamera.moveRight(-speed);
-        }
-        if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-            myCamera.moveRight(speed);
-        }
-        if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
-            myCamera.moveUp(speed);
-        }
-        if(glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS ||
-           glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
-            myCamera.moveUp(-speed);
-        }
         if(glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS){
             cout << "\ncoords: ("<<myCamera.pos.x << ", " << myCamera.pos.y
                                         << ", " << myCamera.pos.z
                  << "), yaw: " << myCamera.yaw
-                 << ", pitch: " << myCamera.pitch << flush;
+                 << ", pitch: " << myCamera.pitch;
+
+            cout << "\n4dcam front: ("<<my4dCam.myFront.x << ", " << my4dCam.myFront.y
+                           << ", " << my4dCam.myFront.z << ", " << my4dCam.myFront.w;
+            cout << "\n4dcam ana: ("<<my4dCam.planeImOn.A << ", " << my4dCam.planeImOn.B
+                        << ", " << my4dCam.planeImOn.C  << ", " << my4dCam.planeImOn.D;
+            cout << flush;
         }
-        if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS &&
-           glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
-            myPlane.setNormal(WK4dG::rotationMatrix(WK4dG::axes::y,WK4dG::axes::w,
-                                                    glm::radians(5.f))
-                                *myPlane.getNormal()  );
-        }
-        if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS &&
-           glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
-            myPlane.setNormal(WK4dG::rotationMatrix(WK4dG::axes::y,WK4dG::axes::w,
-                                                    glm::radians(-5.f))
-                                *myPlane.getNormal()  );
-        }
-        if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS &&
-           glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
-            myPlane.setNormal(WK4dG::rotationMatrix(WK4dG::axes::x,WK4dG::axes::w,
-                                                    glm::radians(5.f))
-                                *myPlane.getNormal()  );
-        }
-        if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS &&
-           glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
-            myPlane.setNormal(WK4dG::rotationMatrix(WK4dG::axes::x,WK4dG::axes::w,
-                                                    glm::radians(-5.f))
-                                *myPlane.getNormal()  );
+        float speed = 0.01;
+        float anglespeed = 0.1;
+        if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
+            speed = 0.1;
+            anglespeed = 0.1;
+        }else{
+            speed = 0.01;
+            anglespeed = 0.001;
         }
 
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
+            if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
+//                my4dCam.planeImOn.setNormal(WK4dG::rotationMatrix(WK4dG::axes::y,WK4dG::axes::w,
+//                                                        glm::radians(5.f))
+//                                    *my4dCam.planeImOn.getNormal()  );
+                my4dCam.rotateForwardAna(anglespeed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+//                my4dCam.planeImOn.setNormal(WK4dG::rotationMatrix(WK4dG::axes::y,WK4dG::axes::w,
+//                                                        glm::radians(-5.f))
+//                                    *my4dCam.planeImOn.getNormal()  );
+                my4dCam.rotateForwardAna(-anglespeed);
+            }
+            my4dCam.normalize();
+        }
+        else if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
+            if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
+//                my4dCam.planeImOn.setNormal(WK4dG::rotationMatrix(WK4dG::axes::x,WK4dG::axes::w,
+//                                                        glm::radians(5.f))
+//                                    *my4dCam.planeImOn.getNormal()  );
+                my4dCam.rotateRightAna(anglespeed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+//                my4dCam.planeImOn.setNormal(WK4dG::rotationMatrix(WK4dG::axes::x,WK4dG::axes::w,
+//                                                        glm::radians(-5.f))
+//                                    *my4dCam.planeImOn.getNormal()  );
+                my4dCam.rotateRightAna(-anglespeed);
+            }
+        }else{
+            if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
+                my4dCam.rotateForwardRight(anglespeed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
+                my4dCam.rotateForwardRight(-anglespeed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
+                myCamera.moveForward(speed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS){
+                myCamera.moveForward(-speed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
+                myCamera.moveRight(-speed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+                myCamera.moveRight(speed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
+                myCamera.moveUp(speed);
+            }
+            if(glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS ||
+                    glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
+                myCamera.moveUp(-speed);
+            }
+            my4dCam.normalize();
+        }
         vector<vector<WK4dG::vec4>> ans = WK4dG::tesseractCrossSectionByHyperPlane(
-                                            myBlock, myPlane);
+                                            myBlock, my4dCam.planeImOn);
 
 
 
@@ -428,12 +450,14 @@ int main_()
 
         for (vector<WK4dG::vec4>& face : ans){
             tempMesh.m_points.resize(face.size()*3);
-            tempMesh.m_indices.resize(face.size());
-            for (int i=0; i<face.size()*3; i+=3){
+            tempMesh.m_indices.resize((face.size()-2)*3);
+            for (size_t i=0; i<face.size()*3; i+=3){
                 face[i/3] = tr*face[i/3];
                 tempMesh.m_points[i+0] = face[i/3].y;
                 tempMesh.m_points[i+1] = face[i/3].z;
                 tempMesh.m_points[i+2] = face[i/3].x;
+            }
+            for (size_t i=0; i<(face.size()-2)*3; i+=3){
                 tempMesh.m_indices[i+0] = 0;
                 tempMesh.m_indices[i+1] = i/3+1;
                 tempMesh.m_indices[i+2] = i/3+2;
@@ -477,7 +501,7 @@ void printMatrix (WK4dG::matrix5x5 const& m)
     cout <<"\n}";
 }
 
-int main(int argc, char *argv[])
+int main_(int argc, char *argv[])
 {
 
     //Инициализация GLFW
@@ -514,14 +538,12 @@ int main(int argc, char *argv[])
     WK4dG::AATesseract ts{1};
     ts.position = WK4dG::vec4{-0.5, -0.5, -0.5, -0.5};
 
-    WK4dG::hyperPlane4 pl(WK4dG::vec4(0, 0, 0, 0),
-                          WK4dG::vec4(1,0,0,0));
-    vector<vector<WK4dG::vec4>> faces = WK4dG::tesseractCrossSectionByHyperPlane(
-                ts, pl);
 
     WK4dG::FPSPointOfView myPOV;
     myPOV.myFront = WK4dG::vec4(0,0,0,1);
-    myPOV.planeImOn = &pl;
+    myPOV.planeImOn = WK4dG::hyperPlane4(WK4dG::vec4{0,0,0,0},WK4dG::vec4{1,0,0,0});
+    vector<vector<WK4dG::vec4>> faces = WK4dG::tesseractCrossSectionByHyperPlane(
+                ts, myPOV.planeImOn);
     auto tr = myPOV.getWorldToHyperplaneLocalTransformMatrix();
 
     mesh sliceMesh({},{});
@@ -539,11 +561,6 @@ int main(int argc, char *argv[])
             sliceMesh.m_indices[i+2]= (i/3)+2;
         }
     }
-
-
-    auto v = orthogonalToThree(WK4dG::vec4{1,0,0,0}, WK4dG::vec4{0,0,1,0},
-                               WK4dG::vec4{0,0,0,1});
-    cout << '\n' <<endl<< v.y << endl;
 
     return 0;
 }
