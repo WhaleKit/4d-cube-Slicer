@@ -726,7 +726,7 @@ struct FPSPointOfView
 
 struct SpaceSimPointOfView
 {
-    hyperPlane4 planeImOn;
+    hyperPlane4 planeImOn =  hyperPlane4(vec4{0,0,0,0},vec4{0,0,0,1});
     vec4 myCoord = {0,0,0,0};
     vec4 myUp = {0,0,1,0};
     vec4 myFront=vec4{1,0,0,0};
@@ -755,6 +755,13 @@ struct SpaceSimPointOfView
         vec4 newF = myFront.rotatedTowardAnother(getMyRigth(), ang);
         myFront = newF;
     }
+    void rotateForwardAna(float ang)
+    {
+        vec4 newF = myFront.rotatedTowardAnother(planeImOn.getNormal(), ang);
+        vec4 newA = planeImOn.getNormal().rotatedTowardAnother(myFront, -ang);
+        myFront = newF;
+        planeImOn = hyperPlane4(myCoord, newA);
+    }
     //2 following functions return new plane normal vector
     //il concider changing hyperplane's normal directly instead
     void rotateRightAna (float ang)
@@ -763,12 +770,10 @@ struct SpaceSimPointOfView
         newA = planeImOn.getNormal().rotatedTowardAnother(getMyRigth(), -ang);
         planeImOn = hyperPlane4(myCoord, newA);
     }
-    void rotateForwardAna(float ang)
+    void rotateRightUp(float ang)
     {
-        vec4 newF = myFront.rotatedTowardAnother(planeImOn.getNormal(), ang);
-        vec4 newA = planeImOn.getNormal().rotatedTowardAnother(myFront, -ang);
-        myFront = newF;
-        planeImOn = hyperPlane4(myCoord, newA);
+        vec4 newU = myUp.rotatedTowardAnother(getMyRigth(), -ang);
+        myUp = newU;
     }
     void rotateUpAna(float ang)
     {
@@ -782,16 +787,18 @@ struct SpaceSimPointOfView
     {
         //матрица. смещаем. поворачиваем для нового базиса.
         //поворачиваем для pitch
-        matrix5x5 transform = moveMatrix(-myCoord);
-        transform = toNewBasisRotationMatrix(myFront, getMyRigth(), myUp
-                        ,planeImOn.getNormal().normazized())*transform;
+        matrix5x5 transform = fromBasisToStandartRotationMatrix(myFront, getMyRigth(), myUp
+                                                ,planeImOn.getNormal().normazized());
+        transform = moveMatrix(myCoord)*transform;
         return transform;
     }
     matrix5x5 getHyperplaneLocalToWorldTransformMatrix() const
     {
-        matrix5x5 transform = fromBasisToStandartRotationMatrix(myFront, getMyRigth(), myUp
-                                                ,planeImOn.getNormal().normazized());
-        transform = moveMatrix(myCoord)*transform;
+        matrix5x5 transform = fromBasisToStandartRotationMatrix(myFront, getMyRigth()
+                                            , myUp
+                                            ,planeImOn.getNormal().normazized())
+                            *moveMatrix(myCoord);
+        //transform = *transform;
         return transform;
     }
     void normalize()

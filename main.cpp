@@ -36,9 +36,21 @@ struct mySimpleShaderProgram
 {
     GLuint m_vertexShader;
     GLuint m_fragmentShader;
+    GLuint m_geomShader;
     GLuint m_shaderProg;
     bool m_correct = false;
     std::string failureReason;
+
+    mySimpleShaderProgram(std::istream& vert, std::istream& geom,
+                          std::istream& fragm)
+        :mySimpleShaderProgram(std::string(std::istreambuf_iterator<char>(vert),
+                                           std::istreambuf_iterator<char>()),
+                               std::string(std::istreambuf_iterator<char>(geom),
+                                           std::istreambuf_iterator<char>()),
+                               std::string(std::istreambuf_iterator<char>(fragm),
+                                           std::istreambuf_iterator<char>())
+                               )
+    {}
     mySimpleShaderProgram(std::istream& vert, std::istream& fragm)
         :mySimpleShaderProgram(std::string(std::istreambuf_iterator<char>(vert),
                                            std::istreambuf_iterator<char>()),
@@ -46,7 +58,13 @@ struct mySimpleShaderProgram
                                            std::istreambuf_iterator<char>())
                                )
     {}
+
     mySimpleShaderProgram(string const& vert, string const& fragm)
+        :mySimpleShaderProgram(vert, string(""), fragm)
+    {    }
+
+    mySimpleShaderProgram(string const& vert, string const& geom,
+                          string const& fragm)
     {
         m_vertexShader   = glCreateShader(GL_VERTEX_SHADER);
         m_fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -60,6 +78,24 @@ struct mySimpleShaderProgram
 
         GLint success;
         GLchar infolog[512];
+        if(!geom.empty()){
+            m_geomShader = glCreateShader(GL_GEOMETRY_SHADER);
+            c = geom.c_str();
+            glShaderSource(m_geomShader, 1, &c, NULL);
+            glCompileShader(m_geomShader);
+            glGetShaderiv(m_geomShader, GL_COMPILE_STATUS, &success);
+            if(!success){
+                glGetShaderInfoLog(m_geomShader, 512, NULL, infolog);
+                failureReason = "geometry shader not compiled: ";
+                failureReason.append(infolog);
+                m_correct = false;
+                glDeleteShader(m_geomShader);
+                m_geomShader = 0;
+                return;
+            }
+        }else{
+            m_geomShader=0;
+        }
         glGetShaderiv(m_vertexShader, GL_COMPILE_STATUS, &success);
         if(!success){
             glGetShaderInfoLog(m_vertexShader, 512, NULL, infolog);
@@ -68,6 +104,8 @@ struct mySimpleShaderProgram
             m_correct = false;
             glDeleteShader(m_vertexShader);
             m_vertexShader = 0;
+            glDeleteShader(m_geomShader);
+            m_geomShader = 0;
             return;
         }
 
@@ -82,12 +120,18 @@ struct mySimpleShaderProgram
             m_vertexShader = 0;
             glDeleteShader(m_fragmentShader);
             m_fragmentShader = 0;
+            glDeleteShader(m_geomShader);
+            m_geomShader = 0;
             return;
         }
 
         m_shaderProg = glCreateProgram();
         glAttachShader(m_shaderProg, m_vertexShader);
         glAttachShader(m_shaderProg, m_fragmentShader);
+        if(!geom.empty()){
+            glAttachShader(m_shaderProg, m_geomShader);
+        }
+
         glLinkProgram(m_shaderProg);
 
         glGetShaderiv(m_shaderProg, GL_LINK_STATUS, &success);
@@ -100,6 +144,8 @@ struct mySimpleShaderProgram
             m_vertexShader = 0;
             glDeleteShader(m_fragmentShader);
             m_fragmentShader = 0;
+            glDeleteShader(m_geomShader);
+            m_geomShader = 0;
             glDeleteProgram(m_shaderProg);
             m_shaderProg = 0;
             return;
@@ -110,28 +156,39 @@ struct mySimpleShaderProgram
     mySimpleShaderProgram(mySimpleShaderProgram && oth)
         :m_vertexShader(oth.m_vertexShader)
         ,m_fragmentShader(oth.m_fragmentShader)
+        ,m_geomShader(oth.m_geomShader)
         ,m_shaderProg(oth.m_shaderProg)
         ,m_correct(oth.m_correct)
         ,failureReason(std::move(oth.failureReason))
     {
         oth.m_vertexShader=0;
         oth.m_fragmentShader=0;
+        oth.m_geomShader=0;
         oth.m_shaderProg=0;
         oth.m_correct = false;
     }
-
     ~mySimpleShaderProgram()
     {
         glDeleteShader(m_vertexShader);
         glDeleteShader(m_fragmentShader);
+        glDeleteShader(m_geomShader);
         glDeleteProgram(m_shaderProg);
     }
 
     static mySimpleShaderProgram fromFile(string const& vertFile, string const& fragFile)
     {
-        ifstream vert("resources\\vertshader1.vert");
-        ifstream frag("resources\\fragmshader1.frag");
+        ifstream vert(vertFile);
+        ifstream frag(fragFile);
         return mySimpleShaderProgram{vert, frag};
+    }
+    static mySimpleShaderProgram fromFile(string const& vertFile,
+                                          string const& geomFile,
+                                          string const& fragFile)
+    {
+        ifstream vert(vertFile);
+        ifstream geom(geomFile);
+        ifstream frag(fragFile);
+        return mySimpleShaderProgram{vert,geom, frag};
     }
 
     operator bool ()
@@ -264,22 +321,8 @@ int main()
     //mySimpleShaderProgram shadr{string(vertShader1), string(fragmShader2)};
     mySimpleShaderProgram shadr
             = mySimpleShaderProgram::fromFile("resources\\vertshader1.vert",
+                                              "resources\\geomshader.geom",
                                               "resources\\fragmshader1.frag");
-    mesh cube({
-                  0, 0, 0,   0, 0, 1, //лн 01
-                  0, 1, 0,   0, 1, 1, //лв 23
-                  1, 0, 0,   1, 0, 1, //пн 45
-                  1, 1, 0,   1, 1, 1  //пв 67
-              },{
-                  0,2,3,   0,3,1,// левый квадрат 0 1 2 3 /
-                  4,7,6,   4,5,7,// правы квадрат 4 5 6 7
-
-                  2,6,7,   2,7,3,// верхн квадрат 2 3 6 7 /
-                  0,5,4,   0,1,5,// нижни квадрат 0 1 4 5
-
-                  0,4,6,   0,6,2,// ближн увадрат 0 2 4 6
-                  1,7,5,   1,3,7 // дальн квадрат 1 3 5 7
-              });
 
     struct FPSPointOfView{
         glm::vec3 pos;
@@ -323,7 +366,6 @@ int main()
     glProgramUniformMatrix4fv(shadr.m_shaderProg, projLoc,
                               1, GL_FALSE, glm::value_ptr(projection));
 
-
     GLint nrAttributes;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &nrAttributes);
     std::cout << "Maximum nr of vertex attributes supported: " << nrAttributes
@@ -343,24 +385,50 @@ int main()
     start = std::chrono::system_clock::now();
     float prevFrameElapsed=0;
 
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetKeyCallback(window,
-        [](GLFWwindow* window, int key, int scancode, int action, int mode){
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-                glfwSetWindowShouldClose(window, GL_TRUE);
-    });
+
     glm::tvec2<double> cursorPos;
     glm::tvec2<double> lastFrameCursorPos = {0,0};
 
-
-
     WK4dG::AATesseract myBlock(1);
     myBlock.position = WK4dG::vec4{-0.5, -0.5, -0.5, -0.5};
-    WK4dG::FPSPointOfView my4dCam;
+    WK4dG::SpaceSimPointOfView my4dCam;
 
     mesh tempMesh{{},{}};
     tempMesh.m_indices.reserve(30);
     tempMesh.m_points.reserve(30);
+    bool pause=false;
+    float ang1, ang2, ang3, ang4, ang5;
+
+    auto myKeyCallback = [&](GLFWwindow* window, int key, int scancode, int action, int mode){
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+                glfwSetWindowShouldClose(window, GL_TRUE);
+        if (key == GLFW_KEY_ENTER && action == GLFW_PRESS){
+            void* pv = glfwGetWindowUserPointer(window);
+            pause = !pause;
+        }
+    };
+    glfwSetWindowUserPointer(window, &myKeyCallback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetKeyCallback(window,
+        [](GLFWwindow* window, int key, int scancode, int action, int mode){
+
+        void* pv = glfwGetWindowUserPointer(window);
+        decltype(myKeyCallback)* p = static_cast<decltype(myKeyCallback)*>(pv);
+        (*p)(window, key, scancode, action, mode);
+
+    });
+
+    WK4dG::matrix5x5 rot = WK4dG::rotationMatrix(WK4dG::axes::z, WK4dG::axes::w, 0.02);
+
+    float ang[6] = {0., 0., 0., 0., 0.};
+    WK4dG::SpaceSimPointOfView startMyCam;
+    startMyCam.rotateForwardRight(glm::radians(45.f));
+    startMyCam.rotateForwardUp(glm::radians(45.f));
+    startMyCam.rotateRightAna(glm::radians(45.f));
+    startMyCam.rotateUpAna(glm::radians(-45.f));
+
+
+
     while(!glfwWindowShouldClose(window))
     {
         //timey-whiney stuff
@@ -377,30 +445,68 @@ int main()
 
 
         float speed = 0.01;
-        float anglespeed = 0.1;
+        float anglespeed = 0.03;
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
             speed = 0.1;
-            anglespeed = 0.1;
+            //anglespeed = 0.1;
         }else{
             speed = 0.01;
             anglespeed = 0.03;
         }
+        my4dCam = startMyCam;
+        my4dCam.rotateForwardRight(ang[0]);
+        my4dCam.rotateForwardUp(ang[1]);
+        my4dCam.rotateRightUp(ang[2]);
+        my4dCam.rotateForwardAna(ang[3]);
+        my4dCam.rotateUpAna(ang[4]);
+        my4dCam.rotateRightAna(ang[5]);
 
+
+        if (pause){
+            //ang[1] += anglespeed*0.5;
+            ang[1] += anglespeed;
+            ang[4] -= anglespeed*0.5;
+
+//            my4dCam.rotateForwardUp(anglespeed*0.5);
+//            my4dCam.rotateRightAna(anglespeed);
+//            my4dCam.rotateUpAna(anglespeed);
+//            myBlock.position = WK4dG::vec4{-0.5, -0.5, -0.5,
+//                        std::sin(anglespeed*0.5)*0.7-0.5};
+//            my4dCam.myFront = rot * my4dCam.myFront;
+//            my4dCam.myUp = rot * my4dCam.myUp;
+//            my4dCam.planeImOn.setNormal( rot*my4dCam.planeImOn.getNormal()  );
+        }
+        if(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS){
+            //my4dCam.rotateUpAna(anglespeed);
+            startMyCam.myCoord.w += (speed/4);
+
+        }
+        if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS){
+            //my4dCam.rotateUpAna(anglespeed);
+            startMyCam.myCoord.w -= (speed/4);
+        }
+
+        if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
+            //my4dCam.rotateUpAna(anglespeed);
+        }
+        if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
+            //my4dCam.rotateUpAna(-anglespeed);
+        }
         if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
             if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-                my4dCam.rotateForwardAna(anglespeed);
+                //my4dCam.rotateForwardAna(anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-                my4dCam.rotateForwardAna(-anglespeed);
+                //my4dCam.rotateForwardAna(-anglespeed);
             }
             my4dCam.normalize();
         }
         else if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
             if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-                my4dCam.rotateRightAna(anglespeed);
+                //my4dCam.rotateRightAna(anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-                my4dCam.rotateRightAna(-anglespeed);
+                //my4dCam.rotateRightAna(-anglespeed);
             }
         }else{
             if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
