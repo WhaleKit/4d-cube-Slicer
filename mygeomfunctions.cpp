@@ -41,7 +41,7 @@ vector<vector<WK4dG::vec4> > WK4dG::tesseractCrossSectionByHyperPlane(const WK4d
 {
     vector<vector<vec4>> result;
     result.reserve(6);
-    for (int i = 0; i<=8; ++i){
+    for (int i = 0; i<8; ++i){
         directions d = directions(i);
         auto a = cubeCrossSectionByHyperPlane( ts.getCubeCell(d), plane );
         if (!a.empty()){
