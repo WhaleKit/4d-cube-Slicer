@@ -161,10 +161,10 @@ int main()
     WK4d::SpaceSimPointOfView startMyCam;
     //startMyCam.myCoord = WK4d::vec4{0.5, 0.5, 0.5, 0.5};
     startMyCam.myCoord = WK4d::vec4{0., 0., 0., 0.};
-    startMyCam.rotateForwardRight(glm::radians(45.f));
-    startMyCam.rotateForwardUp(glm::radians(45.f));
-    startMyCam.rotateRightAna(glm::radians(45.f));
-    startMyCam.rotateUpAna(glm::radians(-45.f));
+//    startMyCam.rotateForwardRight(glm::radians(45.f));
+//    startMyCam.rotateForwardUp(glm::radians(45.f));
+//    startMyCam.rotateRightAna(glm::radians(45.f));
+//    startMyCam.rotateUpAna(glm::radians(-45.f));
 
 
     WK4d::AATesseract blockToSlice{1};
@@ -195,12 +195,12 @@ int main()
             anglespeed = 0.03;
         }
         my4dCam = startMyCam;
-        my4dCam.rotateForwardAna(ang[3]);
-        my4dCam.rotateRightAna(ang[5]);
-        my4dCam.rotateUpAna(ang[4]);
-        my4dCam.rotateForwardUp(ang[1]);
-        my4dCam.rotateRightUp(ang[2]);
-        my4dCam.rotateForwardRight(ang[0]);
+//        my4dCam.rotateForwardAna(ang[3]);
+//        my4dCam.rotateRightAna(ang[5]);
+//        my4dCam.rotateUpAna(ang[4]);
+//        my4dCam.rotateForwardUp(ang[1]);
+//        my4dCam.rotateRightUp(ang[2]);
+//        my4dCam.rotateForwardRight(ang[0]);
 
 
         if (pause){
@@ -268,70 +268,97 @@ int main()
             my4dCam.normalize();
         }
 
+//        vector<vector<WK4d::vec4>> ans = WK4d::tesseractCrossSectionByHyperPlane(
+//                    blockToSlice, my4dCam.planeImOn);
+//        WK4d::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
+//        glm::vec3 figCenter{0,0,0};
+//        vector<glm::vec3> faceCenters;
+//        faceCenters.reserve(ans.size());
+//        {//calculating center of slice figure and individual faces
+//            int div=0;
+//            for (vector<WK4d::vec4>& face : ans){
+//                glm::vec3 faceCenter{0,0,0};
+//                int fdiv=0;
+//                for (WK4d::vec4& vert: face){
+//                    vert = tr*vert;
+//                    ++fdiv;
+//                    faceCenter+=glm::vec3{vert.x, vert.y,vert.z};
+//                }
+//                faceCenter/=fdiv;
+//                figCenter+=faceCenter;
+//                ++div;
+//                faceCenters.push_back(faceCenter);
+//            }
+//            figCenter /= div;
+//        }
+//        {//sorting verticles in faces to make the go CCW
+//            std::vector<std::pair<float, glm::vec3>> angsVerts;
+//            angsVerts.reserve(6);
+//            for (size_t i=0; i < ans.size(); ++i){
+//                angsVerts.resize(0);
+//                WK4d::vec4 const& b = ans[i][0];
+//                glm::vec3 faceCn = faceCenters[i];
+//                glm::vec3 lb = {b.x-faceCn.x, b.y-faceCn.y, b.z-faceCn.z};
+//                glm::vec3 lFigCn = figCenter-faceCn;
+//                lFigCn -= glm::proj(lFigCn, lb);
+//                lFigCn -= glm::proj(lFigCn,
+//                {ans[i][1].x-faceCn.x, ans[i][1].y-faceCn.y,
+//                 ans[i][1].z-faceCn.z});
+//                lFigCn = glm::normalize(lFigCn);
+//                auto ang = [&](WK4d::vec4 const& a){
+//                    glm::vec3 la = {a.x-faceCn.x, a.y-faceCn.y, a.z-faceCn.z};
+//                    glm::vec3 aCb= glm::cross(la, lb);
+//                    float tr = glm::dot(aCb, lFigCn);
+//                    float d = glm::dot(la, lb)
+//                            /(glm::length(la)*glm::length(lb));
+//                    float ang = std::acos(std::min(std::max(d, -1.f), 1.f));
+//                    if (tr>=0){
+//                        return ang;
+//                    }else{
+//                        return 2*glm::pi<float>() - ang;
+//                    }
+//                };
+//                for (WK4d::vec4& vert: ans[i]){
+//                    angsVerts.push_back(std::make_pair(ang(vert),
+//                                                       glm::vec3{vert.x, vert.y, vert.z}));
+//                }
+//                std::sort(angsVerts.begin(), angsVerts.end(),
+//                          [](auto const& f, auto const& s)->bool{
+//                    return f.first > s.first;
+//                });
+//                for (size_t j=0; j<ans[i].size(); ++j){
+//                    glm::vec3& v= angsVerts[j].second;
+//                    ans[i][j] = WK4d::vec4{v.x, v.y, v.z, 0};
+//                }
+//            }
+//        }
+
         vector<vector<WK4d::vec4>> ans = WK4d::tesseractCrossSectionByHyperPlane(
                     blockToSlice, my4dCam.planeImOn);
         WK4d::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
-        glm::vec3 figCenter{0,0,0};
-        vector<glm::vec3> faceCenters;
-        faceCenters.reserve(ans.size());
-        {//calculating center of slice figure and individual faces
-            int div=0;
-            for (vector<WK4d::vec4>& face : ans){
-                glm::vec3 faceCenter{0,0,0};
-                int fdiv=0;
-                for (WK4d::vec4& vert: face){
-                    vert = tr*vert;
-                    ++fdiv;
-                    faceCenter+=glm::vec3{vert.x, vert.y,vert.z};
-                }
-                faceCenter/=fdiv;
-                figCenter+=faceCenter;
-                ++div;
-                faceCenters.push_back(faceCenter);
+
+        glm::vec4 figCenter = glm::vec4(tr*(blockToSlice.position + (blockToSlice.size/2.f)));
+        tempMesh.m_points.resize(0);
+        tempMesh.m_indices.resize(0);
+
+        size_t j = 0;
+        for (vector<WK4d::vec4>& face: ans){
+            tempMesh.m_points.resize(tempMesh.m_points.size() + face.size()*3);
+            for (size_t i=0; i<face.size()*3; i+=3){
+                face[i/3] = tr*face[i/3];
+                tempMesh.m_points[j*3+i+0] = face[i/3].y;
+                tempMesh.m_points[j*3+i+1] = face[i/3].z;
+                tempMesh.m_points[j*3+i+2] = face[i/3].x;
             }
-            figCenter /= div;
+            vector<GLuint> toAdd= makeIndexArrayForFace(face, figCenter, j);
+            tempMesh.m_indices.insert(tempMesh.m_indices.end(), toAdd.begin(), toAdd.end());
+            j += face.size();
         }
-        {//sorting verticles in faces to make the go CCW
-            std::vector<std::pair<float, glm::vec3>> angsVerts;
-            angsVerts.reserve(6);
-            for (size_t i=0; i < ans.size(); ++i){
-                angsVerts.resize(0);
-                WK4d::vec4 const& b = ans[i][0];
-                glm::vec3 faceCn = faceCenters[i];
-                glm::vec3 lb = {b.x-faceCn.x, b.y-faceCn.y, b.z-faceCn.z};
-                glm::vec3 lFigCn = figCenter-faceCn;
-                lFigCn -= glm::proj(lFigCn, lb);
-                lFigCn -= glm::proj(lFigCn,
-                {ans[i][1].x-faceCn.x, ans[i][1].y-faceCn.y,
-                 ans[i][1].z-faceCn.z});
-                lFigCn = glm::normalize(lFigCn);
-                auto ang = [&](WK4d::vec4 const& a){
-                    glm::vec3 la = {a.x-faceCn.x, a.y-faceCn.y, a.z-faceCn.z};
-                    glm::vec3 aCb= glm::cross(la, lb);
-                    float tr = glm::dot(aCb, lFigCn);
-                    float d = glm::dot(la, lb)
-                            /(glm::length(la)*glm::length(lb));
-                    float ang = std::acos(std::min(std::max(d, -1.f), 1.f));
-                    if (tr>=0){
-                        return ang;
-                    }else{
-                        return 2*glm::pi<float>() - ang;
-                    }
-                };
-                for (WK4d::vec4& vert: ans[i]){
-                    angsVerts.push_back(std::make_pair(ang(vert),
-                                                       glm::vec3{vert.x, vert.y, vert.z}));
-                }
-                std::sort(angsVerts.begin(), angsVerts.end(),
-                          [](auto const& f, auto const& s)->bool{
-                    return f.first > s.first;
-                });
-                for (size_t j=0; j<ans[i].size(); ++j){
-                    glm::vec3& v= angsVerts[j].second;
-                    ans[i][j] = WK4d::vec4{v.x, v.y, v.z, 0};
-                }
-            }
-        }
+        tempMesh.updateBufsInGPU(GL_STREAM_DRAW);
+
+
+
+
 
         view = glm::rotate(glm::mat4{}, -myCamera.pitch, glm::vec3{1.0f, 0.0f, 0.0f});
         view = glm::rotate(view, -myCamera.yaw, glm::vec3{0.0f, 1.0f, 0.0f});
@@ -342,29 +369,34 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT);
 
-
         glUseProgram(shadr.m_shaderProg);
-        for (vector<WK4d::vec4>& face : ans){
-            tempMesh.m_points.resize(face.size()*3);
-            tempMesh.m_indices.resize((face.size()-2)*3);
-            for (size_t i=0; i<face.size()*3; i+=3){
-                //7face[i/3] = tr*face[i/3];
-                tempMesh.m_points[i+0] = face[i/3].y;
-                tempMesh.m_points[i+1] = face[i/3].z;
-                tempMesh.m_points[i+2] = face[i/3].x;
-                if (!WK4d::fuzzyEqual(face[i/3].w, 0)
-                        && !std::isnan(face[i/3].w)){
-                    cout << "f "<<face[i/3].w<<" ";
-                }
-            }
-            for (size_t i=0; i<(face.size()-2)*3; i+=3){
-                tempMesh.m_indices[i+0] = 0;
-                tempMesh.m_indices[i+1] = i/3+1;
-                tempMesh.m_indices[i+2] = i/3+2;
-            }
-            tempMesh.updateBufsInGPU(GL_STREAM_DRAW);
-            tempMesh.bind();
-            glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
+        tempMesh.bind();
+        glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
+
+
+
+//        glUseProgram(shadr.m_shaderProg);
+//        for (vector<WK4d::vec4>& face : ans){
+//            tempMesh.m_points.resize(face.size()*3);
+//            tempMesh.m_indices.resize((face.size()-2)*3);
+//            for (size_t i=0; i<face.size()*3; i+=3){
+//                //7face[i/3] = tr*face[i/3];
+//                tempMesh.m_points[i+0] = face[i/3].y;
+//                tempMesh.m_points[i+1] = face[i/3].z;
+//                tempMesh.m_points[i+2] = face[i/3].x;
+//                if (!WK4d::fuzzyEqual(face[i/3].w, 0)
+//                        && !std::isnan(face[i/3].w)){
+//                    cout << "f "<<face[i/3].w<<" ";
+//                }
+//            }
+//            for (size_t i=0; i<(face.size()-2)*3; i+=3){
+//                tempMesh.m_indices[i+0] = 0;
+//                tempMesh.m_indices[i+1] = i/3+1;
+//                tempMesh.m_indices[i+2] = i/3+2;
+//            }
+//            tempMesh.updateBufsInGPU(GL_STREAM_DRAW);
+//            tempMesh.bind();
+//            glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
 
 //            bool glitchOption_0 = false;
 //            if (glitchOption_0){ //рисуем в центре каждого фейса копию меша
@@ -396,12 +428,13 @@ int main()
 //                                        1, GL_FALSE, glm::value_ptr(model));
 
 //            }
-        }
+//        }
 
 
         glfwPollEvents();
         glfwSwapBuffers(window);
     }
+
     glfwTerminate();
     return 0;
 }

@@ -11,7 +11,7 @@
 #include "glm/glm.hpp"
 
 #include "wk4dcore.h"
-#include "wk4dpointsofview.h"
+#include "wk4dgraphics.h"
 
 
 namespace std{
