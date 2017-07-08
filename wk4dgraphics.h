@@ -4,6 +4,7 @@
 #include <fstream>
 #include <streambuf>
 #include <vector>
+#include <algorithm>
 
 #include <GL/glew.h>
 
@@ -248,7 +249,61 @@ public:
 };
 
 
+
+
 void drawLine(glm::vec3 p1, glm::vec3 p2);
 
+
+//makes index array for convax face, such that
+//it will be fully covered with minimal amount of triangles
+inline
+std::vector<GLuint> makeIndexArrayForFace (std::vector<glm::vec4> face,
+                            glm::vec4 faceCenter, glm::vec4 normal)
+{
+    std::vector<GLuint> result;
+    std::vector<std::pair<float, GLuint>> angsVerts; //angle of vertice and it's index
+
+    angsVerts.push_back(std::make_pair(0.0, 0));
+    glm::vec3 locA = face[0] - faceCenter;
+    for (int i=1; i<face.size(); ++i){
+        float angle;
+        glm::vec3 locB = face[i] - faceCenter;
+        glm::vec3 bCa= glm::cross(locB, locA);
+        float d = glm::dot(locB, locA)
+                /(glm::length(locB)*glm::length(locA));
+        float tr = glm::dot(bCa, glm::vec3(normal));
+        angle = std::acos(std::min(std::max(d, -1.f), 1.f));
+        if (tr>=0){
+            angle = 2*glm::pi<float>() - angle;
+        }
+        angsVerts.push_back(std::make_pair(angle,i) );
+    }
+    std::sort(angsVerts.begin(), angsVerts.end(),
+              [](auto const& f, auto const& s)->bool{
+        return f.first > s.first;
+    });
+    result.resize((face.size()-2)*3);
+    for (size_t i=0; i<(face.size()-2)*3; i+=3){
+        result[i+0] = angsVerts[0].second;
+        result[i+1] = angsVerts[i/3+1].second;
+        result[i+2] = angsVerts[i/3+2].second;
+    }
+    return result;
+}
+inline
+std::vector<GLuint> makeIndexArrayForFace (std::vector<glm::vec4> const& face,
+                            glm::vec4 pointAtTheBackOfFace)
+{
+    assert(face.size()>2);
+    glm::vec4 faceCenter{0,0,0,0};
+    for (glm::vec4 const& a : face){
+        faceCenter+=a;
+    }
+    faceCenter /= float(face.size());
+    glm::vec4 normal = faceCenter-pointAtTheBackOfFace;
+    normal -= glm::proj(normal, face[0]-faceCenter);
+    normal -= glm::proj(normal, face[1]-faceCenter);//make sure normal is *normal* to face
+    return makeIndexArrayForFace(face, faceCenter, normal);
+}
 
 #endif // WK4DGRAPHICS_H

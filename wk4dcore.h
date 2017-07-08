@@ -207,7 +207,8 @@ struct AACube
 {
     axes perpendicularTo = axes::w;
     array<float, 4> dimentions;
-    vec4 position; //of left back low kata corner
+    vec4 position; //..of left back low kata corner
+
     //if it perpendicular to z, dimentions is {x y w}
     //if it perpendicular to w, dimentions is {x y z}
     constexpr
