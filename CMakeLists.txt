@@ -29,8 +29,12 @@ include_directories(${OPENGL_INCLUDE_DIR})
 
 set(SOURCES
     main.cpp
-    mygeomfunctions.cpp
-    chunc4d.cpp)
+    chunc4d.cpp
+    wk4dcore.cpp
+    wk4dmatrix5.cpp
+    wk4dpointsofview
+    wk4dgraphics.cpp
+    )
 
 
 if ( CMAKE_COMPILER_IS_GNUCC )

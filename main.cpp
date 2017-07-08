@@ -6,8 +6,6 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
-#include <fstream>
-#include <streambuf>
 #include <vector>
 #include <chrono>
 #include <cmath>
@@ -23,267 +21,13 @@
 
 #include "SOIL.h"
 
-#include "mygeomfunctions.h"
-#include "chunc4d.h"
+#include "wk4dcore.h"
+#include "wk4dmatrix5.h"
+#include "wk4dpointsofview.h"
+#include "wk4dgraphics.h"
 
 using namespace std;
 
-struct mesh;
-
-struct mySimpleShaderProgram;
-
-struct mySimpleShaderProgram
-{
-    GLuint m_vertexShader;
-    GLuint m_fragmentShader;
-    GLuint m_geomShader;
-    GLuint m_shaderProg;
-    bool m_correct = false;
-    std::string failureReason;
-
-    mySimpleShaderProgram(std::istream& vert, std::istream& geom,
-                          std::istream& fragm)
-        :mySimpleShaderProgram(std::string(std::istreambuf_iterator<char>(vert),
-                                           std::istreambuf_iterator<char>()),
-                               std::string(std::istreambuf_iterator<char>(geom),
-                                           std::istreambuf_iterator<char>()),
-                               std::string(std::istreambuf_iterator<char>(fragm),
-                                           std::istreambuf_iterator<char>())
-                               )
-    {}
-    mySimpleShaderProgram(std::istream& vert, std::istream& fragm)
-        :mySimpleShaderProgram(std::string(std::istreambuf_iterator<char>(vert),
-                                           std::istreambuf_iterator<char>()),
-                               std::string(std::istreambuf_iterator<char>(fragm),
-                                           std::istreambuf_iterator<char>())
-                               )
-    {}
-
-    mySimpleShaderProgram(string const& vert, string const& fragm)
-        :mySimpleShaderProgram(vert, string(""), fragm)
-    {    }
-
-    mySimpleShaderProgram(string const& vert, string const& geom,
-                          string const& fragm)
-    {
-        m_vertexShader   = glCreateShader(GL_VERTEX_SHADER);
-        m_fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        GLchar const*  c = vert.c_str();
-        glShaderSource(m_vertexShader, 1, &c, NULL);
-        c = fragm.c_str();
-        glShaderSource(m_fragmentShader, 1, &c, NULL);
-
-
-        glCompileShader(m_vertexShader);
-
-        GLint success;
-        GLchar infolog[512];
-        if(!geom.empty()){
-            m_geomShader = glCreateShader(GL_GEOMETRY_SHADER);
-            c = geom.c_str();
-            glShaderSource(m_geomShader, 1, &c, NULL);
-            glCompileShader(m_geomShader);
-            glGetShaderiv(m_geomShader, GL_COMPILE_STATUS, &success);
-            if(!success){
-                glGetShaderInfoLog(m_geomShader, 512, NULL, infolog);
-                failureReason = "geometry shader not compiled: ";
-                failureReason.append(infolog);
-                m_correct = false;
-                glDeleteShader(m_geomShader);
-                m_geomShader = 0;
-                return;
-            }
-        }else{
-            m_geomShader=0;
-        }
-        glGetShaderiv(m_vertexShader, GL_COMPILE_STATUS, &success);
-        if(!success){
-            glGetShaderInfoLog(m_vertexShader, 512, NULL, infolog);
-            failureReason = "vertex shader not compiled: ";
-            failureReason.append(infolog);
-            m_correct = false;
-            glDeleteShader(m_vertexShader);
-            m_vertexShader = 0;
-            glDeleteShader(m_geomShader);
-            m_geomShader = 0;
-            return;
-        }
-
-        glCompileShader(m_fragmentShader);
-        glGetShaderiv(m_fragmentShader, GL_COMPILE_STATUS, &success);
-        if(!success){
-            glGetShaderInfoLog(m_fragmentShader, 512, NULL, infolog);
-            failureReason = "fragment shader not compiled: ";
-            failureReason.append(infolog);
-            m_correct = false;
-            glDeleteShader(m_vertexShader);
-            m_vertexShader = 0;
-            glDeleteShader(m_fragmentShader);
-            m_fragmentShader = 0;
-            glDeleteShader(m_geomShader);
-            m_geomShader = 0;
-            return;
-        }
-
-        m_shaderProg = glCreateProgram();
-        glAttachShader(m_shaderProg, m_vertexShader);
-        glAttachShader(m_shaderProg, m_fragmentShader);
-        if(!geom.empty()){
-            glAttachShader(m_shaderProg, m_geomShader);
-        }
-
-        glLinkProgram(m_shaderProg);
-
-        glGetShaderiv(m_shaderProg, GL_LINK_STATUS, &success);
-        if(!success){
-            glGetShaderInfoLog(m_shaderProg, 512, NULL, infolog);
-            failureReason = "shader program not linked: ";
-            failureReason.append(infolog);
-            m_correct = false;
-            glDeleteShader(m_vertexShader);
-            m_vertexShader = 0;
-            glDeleteShader(m_fragmentShader);
-            m_fragmentShader = 0;
-            glDeleteShader(m_geomShader);
-            m_geomShader = 0;
-            glDeleteProgram(m_shaderProg);
-            m_shaderProg = 0;
-            return;
-        }
-        m_correct = true;
-    }
-
-    mySimpleShaderProgram(mySimpleShaderProgram && oth)
-        :m_vertexShader(oth.m_vertexShader)
-        ,m_fragmentShader(oth.m_fragmentShader)
-        ,m_geomShader(oth.m_geomShader)
-        ,m_shaderProg(oth.m_shaderProg)
-        ,m_correct(oth.m_correct)
-        ,failureReason(std::move(oth.failureReason))
-    {
-        oth.m_vertexShader=0;
-        oth.m_fragmentShader=0;
-        oth.m_geomShader=0;
-        oth.m_shaderProg=0;
-        oth.m_correct = false;
-    }
-    ~mySimpleShaderProgram()
-    {
-        glDeleteShader(m_vertexShader);
-        glDeleteShader(m_fragmentShader);
-        glDeleteShader(m_geomShader);
-        glDeleteProgram(m_shaderProg);
-    }
-
-    static mySimpleShaderProgram fromFile(string const& vertFile, string const& fragFile)
-    {
-        ifstream vert(vertFile);
-        ifstream frag(fragFile);
-        return mySimpleShaderProgram{vert, frag};
-    }
-    static mySimpleShaderProgram fromFile(string const& vertFile,
-                                          string const& geomFile,
-                                          string const& fragFile)
-    {
-        ifstream vert(vertFile);
-        ifstream geom(geomFile);
-        ifstream frag(fragFile);
-        return mySimpleShaderProgram{vert,geom, frag};
-    }
-
-    operator bool ()
-    {
-        return m_correct;
-    }
-};
-
-struct mesh{
-public:
-    GLuint m_VAO;
-    GLuint m_VBO;
-    GLuint m_EBO;
-    std::vector<GLfloat> m_points;
-    std::vector<GLuint> m_indices;
-    mesh(mesh && oth)
-        : m_points(std::move(oth.m_points)),
-          m_indices(std::move(oth.m_indices))
-    {
-        m_VAO = oth.m_VAO;
-        m_VBO = oth.m_VBO;
-        m_EBO = oth.m_EBO;
-        oth.m_VAO = 0;
-        oth.m_VBO = 0;
-        oth.m_EBO = 0;
-    }
-    mesh(mesh const& oth)
-        : mesh(oth.m_points, oth.m_indices)
-    {}
-    mesh(std::vector<GLfloat> const& points, std::vector<GLuint> const& indexes
-         ,GLenum mode = GL_STATIC_DRAW)
-        :m_points(points), m_indices(indexes)
-    {
-
-        glGenVertexArrays(1, &m_VAO);
-        glCreateBuffers(1, &m_VBO);
-        glCreateBuffers(1, &m_EBO);
-        updateBufsInGPU();
-        bind();
-
-        glVertexAttribPointer(0,3, GL_FLOAT,GL_FALSE, 3*sizeof(GLfloat), (GLvoid*)0 );
-        glEnableVertexAttribArray(0);
-        unbind();
-    }
-    ~mesh()
-    {
-        glDeleteBuffers(1, &m_VBO);
-        glDeleteBuffers(1, &m_EBO);
-        glDeleteVertexArrays(1, &m_VAO);
-    }
-    void updateBufsInGPU(GLenum mode = GL_STATIC_DRAW)
-    {
-        //Viva la DSA!
-        glNamedBufferData(m_VBO, m_points.size()*sizeof(GLfloat),
-                          m_points.data(), mode);
-        glNamedBufferData(m_EBO, m_indices.size()*sizeof(GLuint),
-                          m_indices.data(), mode);
-    }
-
-    void bind()
-    {
-        glBindVertexArray(m_VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
-    }
-    static void unbind()
-    {
-        glBindVertexArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    }
-};
-
-
-void drawLine(glm::vec3 p1, glm::vec3 p2){
-    std::vector<GLfloat> m_points{p1.x, p1.y, p1.z,
-                                  p2.x, p2.y, p2.z};
-    GLuint m_VAO, m_VBO;
-    glGenVertexArrays(1, &m_VAO);
-    glBindVertexArray(m_VAO);
-    glCreateBuffers(1, &m_VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-
-    glVertexAttribPointer(0,3, GL_FLOAT,GL_FALSE, 3*sizeof(GLfloat), (GLvoid*)0 );
-    glEnableVertexAttribArray(0);
-
-    glNamedBufferData(m_VBO, m_points.size()*sizeof(GLfloat),
-                      m_points.data(), GL_STREAM_DRAW);
-
-    glDrawArrays(GL_LINES, m_VBO, 2);
-
-    glDeleteBuffers(1, &m_VBO);
-    glDeleteVertexArrays(1, &m_VAO);
-
-}
 
 
 int main()
@@ -389,21 +133,16 @@ int main()
     glm::tvec2<double> cursorPos;
     glm::tvec2<double> lastFrameCursorPos = {0,0};
 
-    WK4dG::AATesseract myBlock(1);
-    myBlock.position = WK4dG::vec4{-0.5, -0.5, -0.5, -0.5};
-    WK4dG::SpaceSimPointOfView my4dCam;
 
     mesh tempMesh{{},{}};
     tempMesh.m_indices.reserve(30);
     tempMesh.m_points.reserve(30);
     bool pause=false;
-    float ang1, ang2, ang3, ang4, ang5;
 
     auto myKeyCallback = [&](GLFWwindow* window, int key, int scancode, int action, int mode){
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
                 glfwSetWindowShouldClose(window, GL_TRUE);
         if (key == GLFW_KEY_ENTER && action == GLFW_PRESS){
-            void* pv = glfwGetWindowUserPointer(window);
             pause = !pause;
         }
     };
@@ -418,17 +157,19 @@ int main()
 
     });
 
-    WK4dG::matrix5x5 rot = WK4dG::rotationMatrix(WK4dG::axes::z, WK4dG::axes::w, 0.02);
-
     float ang[6] = {0., 0., 0., 0., 0.};
-    WK4dG::SpaceSimPointOfView startMyCam;
+    WK4d::SpaceSimPointOfView startMyCam;
+    //startMyCam.myCoord = WK4d::vec4{0.5, 0.5, 0.5, 0.5};
+    startMyCam.myCoord = WK4d::vec4{0., 0., 0., 0.};
     startMyCam.rotateForwardRight(glm::radians(45.f));
     startMyCam.rotateForwardUp(glm::radians(45.f));
     startMyCam.rotateRightAna(glm::radians(45.f));
     startMyCam.rotateUpAna(glm::radians(-45.f));
 
 
-
+    WK4d::AATesseract blockToSlice{1};
+    blockToSlice.position = {-0.5, -0.5, -0.5, -0.5};
+    WK4d::SpaceSimPointOfView my4dCam;
     while(!glfwWindowShouldClose(window))
     {
         //timey-whiney stuff
@@ -454,35 +195,25 @@ int main()
             anglespeed = 0.03;
         }
         my4dCam = startMyCam;
-        my4dCam.rotateForwardRight(ang[0]);
+        my4dCam.rotateForwardAna(ang[3]);
+        my4dCam.rotateRightAna(ang[5]);
+        my4dCam.rotateUpAna(ang[4]);
         my4dCam.rotateForwardUp(ang[1]);
         my4dCam.rotateRightUp(ang[2]);
-        my4dCam.rotateForwardAna(ang[3]);
-        my4dCam.rotateUpAna(ang[4]);
-        my4dCam.rotateRightAna(ang[5]);
+        my4dCam.rotateForwardRight(ang[0]);
 
 
         if (pause){
             //ang[1] += anglespeed*0.5;
-            ang[1] += anglespeed;
+            ang[1] += anglespeed*0.25;
+            ang[3] -= anglespeed;
             ang[4] -= anglespeed*0.5;
-
-//            my4dCam.rotateForwardUp(anglespeed*0.5);
-//            my4dCam.rotateRightAna(anglespeed);
-//            my4dCam.rotateUpAna(anglespeed);
-//            myBlock.position = WK4dG::vec4{-0.5, -0.5, -0.5,
-//                        std::sin(anglespeed*0.5)*0.7-0.5};
-//            my4dCam.myFront = rot * my4dCam.myFront;
-//            my4dCam.myUp = rot * my4dCam.myUp;
-//            my4dCam.planeImOn.setNormal( rot*my4dCam.planeImOn.getNormal()  );
         }
         if(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS){
-            //my4dCam.rotateUpAna(anglespeed);
             startMyCam.myCoord.w += (speed/4);
 
         }
         if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS){
-            //my4dCam.rotateUpAna(anglespeed);
             startMyCam.myCoord.w -= (speed/4);
         }
 
@@ -536,18 +267,19 @@ int main()
             }
             my4dCam.normalize();
         }
-        vector<vector<WK4dG::vec4>> ans = WK4dG::tesseractCrossSectionByHyperPlane(
-                                            myBlock, my4dCam.planeImOn);
-        WK4dG::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
+
+        vector<vector<WK4d::vec4>> ans = WK4d::tesseractCrossSectionByHyperPlane(
+                    blockToSlice, my4dCam.planeImOn);
+        WK4d::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
         glm::vec3 figCenter{0,0,0};
         vector<glm::vec3> faceCenters;
         faceCenters.reserve(ans.size());
         {//calculating center of slice figure and individual faces
             int div=0;
-            for (vector<WK4dG::vec4>& face: ans){
+            for (vector<WK4d::vec4>& face : ans){
                 glm::vec3 faceCenter{0,0,0};
                 int fdiv=0;
-                for (WK4dG::vec4& vert: face){
+                for (WK4d::vec4& vert: face){
                     vert = tr*vert;
                     ++fdiv;
                     faceCenter+=glm::vec3{vert.x, vert.y,vert.z};
@@ -559,48 +291,21 @@ int main()
             }
             figCenter /= div;
         }
-        if(glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS){
-            cout << "\ncoords: ("<<myCamera.pos.x << ", " << myCamera.pos.y
-                                        << ", " << myCamera.pos.z
-                 << "), yaw: " << myCamera.yaw
-                 << ", pitch: " << myCamera.pitch;
-
-            cout << "\n4dcam front: ("<<my4dCam.myFront.x << ", " << my4dCam.myFront.y
-                           << ", " << my4dCam.myFront.z << ", " << my4dCam.myFront.w;
-            cout << "\n4dcam ana: ("<<my4dCam.planeImOn.A << ", " << my4dCam.planeImOn.B
-                        << ", " << my4dCam.planeImOn.C  << ", " << my4dCam.planeImOn.D;
-            for (int i=0; i<faceCenters.size(); ++i){
-                glm::vec3 vc = glm::vec3{faceCenters[i].y, faceCenters[i].z,
-                                        faceCenters[i].x};
-                cout << "   dist. to fc " <<i<<" = "
-                     << glm::length(vc-myCamera.pos)<<";";
-            }
-            if(glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS){
-                cout << "facr: ";
-                int i;
-                cin >> i;
-                glm::vec3 vc = glm::vec3{faceCenters[i].y, faceCenters[i].z,
-                        faceCenters[i].x};
-                myCamera.pos = vc;
-            }
-
-            cout << flush;
-        }
         {//sorting verticles in faces to make the go CCW
             std::vector<std::pair<float, glm::vec3>> angsVerts;
             angsVerts.reserve(6);
-            for (int i=0; i < ans.size(); ++i){
+            for (size_t i=0; i < ans.size(); ++i){
                 angsVerts.resize(0);
-                WK4dG::vec4 const& b = ans[i][0];
+                WK4d::vec4 const& b = ans[i][0];
                 glm::vec3 faceCn = faceCenters[i];
                 glm::vec3 lb = {b.x-faceCn.x, b.y-faceCn.y, b.z-faceCn.z};
                 glm::vec3 lFigCn = figCenter-faceCn;
                 lFigCn -= glm::proj(lFigCn, lb);
                 lFigCn -= glm::proj(lFigCn,
-                            {ans[i][1].x-faceCn.x, ans[i][1].y-faceCn.y,
-                             ans[i][1].z-faceCn.z});
+                {ans[i][1].x-faceCn.x, ans[i][1].y-faceCn.y,
+                 ans[i][1].z-faceCn.z});
                 lFigCn = glm::normalize(lFigCn);
-                auto ang = [&](WK4dG::vec4 const& a){
+                auto ang = [&](WK4d::vec4 const& a){
                     glm::vec3 la = {a.x-faceCn.x, a.y-faceCn.y, a.z-faceCn.z};
                     glm::vec3 aCb= glm::cross(la, lb);
                     float tr = glm::dot(aCb, lFigCn);
@@ -613,21 +318,19 @@ int main()
                         return 2*glm::pi<float>() - ang;
                     }
                 };
-                for (WK4dG::vec4& vert: ans[i]){
+                for (WK4d::vec4& vert: ans[i]){
                     angsVerts.push_back(std::make_pair(ang(vert),
-                                glm::vec3{vert.x, vert.y, vert.z}));
+                                                       glm::vec3{vert.x, vert.y, vert.z}));
                 }
                 std::sort(angsVerts.begin(), angsVerts.end(),
-                    [](auto const& f, auto const& s)->bool{
-                        return f.first > s.first;
-                    });
-                for (int j=0; j<ans[i].size(); ++j){
+                          [](auto const& f, auto const& s)->bool{
+                    return f.first > s.first;
+                });
+                for (size_t j=0; j<ans[i].size(); ++j){
                     glm::vec3& v= angsVerts[j].second;
-                    ans[i][j] = WK4dG::vec4{v.x, v.y, v.z, 0};
+                    ans[i][j] = WK4d::vec4{v.x, v.y, v.z, 0};
                 }
-
             }
-
         }
 
         view = glm::rotate(glm::mat4{}, -myCamera.pitch, glm::vec3{1.0f, 0.0f, 0.0f});
@@ -641,7 +344,7 @@ int main()
 
 
         glUseProgram(shadr.m_shaderProg);
-        for (vector<WK4dG::vec4>& face : ans){
+        for (vector<WK4d::vec4>& face : ans){
             tempMesh.m_points.resize(face.size()*3);
             tempMesh.m_indices.resize((face.size()-2)*3);
             for (size_t i=0; i<face.size()*3; i+=3){
@@ -649,7 +352,7 @@ int main()
                 tempMesh.m_points[i+0] = face[i/3].y;
                 tempMesh.m_points[i+1] = face[i/3].z;
                 tempMesh.m_points[i+2] = face[i/3].x;
-                if (!WK4dG::fuzzyEqual(face[i/3].w, 0)
+                if (!WK4d::fuzzyEqual(face[i/3].w, 0)
                         && !std::isnan(face[i/3].w)){
                     cout << "f "<<face[i/3].w<<" ";
                 }
@@ -663,7 +366,8 @@ int main()
             tempMesh.bind();
             glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
 
-//            {
+//            bool glitchOption_0 = false;
+//            if (glitchOption_0){ //рисуем в центре каждого фейса копию меша
 //                glm::vec3 fg = glm::vec3{figCenter.y, figCenter.z,
 //                                         figCenter.x};
 //                model = glm::mat4{1};
@@ -694,8 +398,6 @@ int main()
 //            }
         }
 
-//        cube.bind();
-//        glDrawElements(GL_TRIANGLES, cube.m_indexes.size(), GL_UNSIGNED_INT, 0);
 
         glfwPollEvents();
         glfwSwapBuffers(window);
@@ -715,7 +417,7 @@ int main()
 //using namespace myGeomFunctions;
 //using namespace std;
 
-void printMatrix (WK4dG::matrix5x5 const& m)
+void printMatrix (WK4d::matrix5x5 const& m)
 {
     cout << "\n{";
     for (int r=0; r<5; ++r){
@@ -762,22 +464,22 @@ int main_(int argc, char *argv[])
     mySimpleShaderProgram shadr
             = mySimpleShaderProgram::fromFile("resources\\vertshader1.vert",
                                               "resources\\fragmshader1.frag");
-    WK4dG::AATesseract ts{1};
-    ts.position = WK4dG::vec4{-0.5, -0.5, -0.5, -0.5};
+    WK4d::AATesseract ts{1};
+    ts.position = WK4d::vec4{-0.5, -0.5, -0.5, -0.5};
 
 
-    WK4dG::FPSPointOfView myPOV;
-    myPOV.myFront = WK4dG::vec4(0,0,0,1);
-    myPOV.planeImOn = WK4dG::hyperPlane4(WK4dG::vec4{0,0,0,0},WK4dG::vec4{1,0,0,0});
-    vector<vector<WK4dG::vec4>> faces = WK4dG::tesseractCrossSectionByHyperPlane(
+    WK4d::FPSPointOfView myPOV;
+    myPOV.myFront = WK4d::vec4(0,0,0,1);
+    myPOV.planeImOn = WK4d::hyperPlane4(WK4d::vec4{0,0,0,0},WK4d::vec4{1,0,0,0});
+    vector<vector<WK4d::vec4>> faces = WK4d::tesseractCrossSectionByHyperPlane(
                 ts, myPOV.planeImOn);
     auto tr = myPOV.getWorldToHyperplaneLocalTransformMatrix();
 
     mesh sliceMesh({},{});
-    for (vector<WK4dG::vec4>& face: faces){
+    for (vector<WK4d::vec4>& face: faces){
         sliceMesh.m_points.resize(face.size()*3);
         sliceMesh.m_indices.resize(face.size()*3);
-        for (int i=0; i<face.size()*3; i+=3){
+        for (size_t i =0; i<face.size()*3; i+=3){
             face[i/3] = tr*face[i/3];
             sliceMesh.m_points[i+0] = face[i/3].y;
             sliceMesh.m_points[i+1] = face[i/3].z;

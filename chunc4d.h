@@ -7,10 +7,11 @@
 #include <utility>
 #include <algorithm>
 
-#include "mygeomfunctions.h"
 #include "glm/vec4.hpp"
 #include "glm/glm.hpp"
 
+#include "wk4dcore.h"
+#include "wk4dpointsofview.h"
 
 
 namespace std{
@@ -30,7 +31,7 @@ struct hash< array<T, N>  >
 };
 }
 
-namespace WK4dG{
+namespace WK4d{
 
 using std::vector;
 
@@ -78,16 +79,18 @@ struct chunc4d{
         return glm::vec4(offsetPos.x, offsetPos.y, offsetPos.z, offsetPos.w)*blockSize;
     }
     //{left=0, rigth=1, back=2, front=3, down=4, up=5, kata=6, ana=7}
-    vector<vector<glm::vec4>> getSlice (hyperPlane4 const& plane)
+    vector<std::pair<vector<glm::vec4> , glm::vec4>> getSlice (hyperPlane4 const& plane)
     {
-        vector<vector<glm::vec4>> result;
+        //returns vector of pairs, each pair contains
+        //face as vector of points and center of tesseract, slice of which resulted in face
+        vector<std::pair<vector<glm::vec4> , glm::vec4>> result;
         std::unordered_set<array<blocktype, 4>> processedBlocks{};
         //possiblySlicedByPlane contains array{x,y,z,w}
         auto processBlock = [&](size_t wi, size_t zi, size_t yi, size_t xi)->void
         {
             bool alreadyProcessed = (processedBlocks.emplace(
                                          array<blocktype, 4>{wi,zi,yi,xi}).second);
-            if(  alreadyProcessed || wi >= S || zi >= S|| yi>=S||xi>=S){
+            if(alreadyProcessed || wi >= S || zi >= S|| yi>=S||xi>=S){
                 return;
             }
             glm::ivec4 currentBlockIdx(xi, yi, zi, wi);
@@ -102,6 +105,7 @@ struct chunc4d{
             vec4 pos = blockOriginAt(wi, zi, yi, xi);
             block.position.x = pos.x; block.position.y = pos.y;
             block.position.z = pos.z; block.position.w = pos.w;
+            vec4 blockCenter = block.position + block.size/2;
             for (int i=0; i<8; ++i){
                 directions iDir{i};
                 glm::ivec4 neighbourIdx = currentBlockIdx+allDirectionVecs[i];
@@ -109,13 +113,13 @@ struct chunc4d{
                                 && neighbourIdx[ int(axeOfDir(iDir))]>0;
                 if(!idxInsideChunc || this->at(neighbourIdx) == blocks::air ){
                     AACube cubeCell = block.getCubeCell(iDir);
-                    vector<vec4> v = cubeCrossSectionByHyperPlane(cubeCell, plane);
-                    result.emplace_back();
-                    result.back().reserve(v.size());
-                    for(vec4 &toRes :v){
-                        result.back().emplace_back(toRes.x, toRes.y,
-                                                   toRes.z, toRes.w);
+                    vector<vec4> face = cubeCrossSectionByHyperPlane(cubeCell, plane);
+                    result.emplace_back({}, blockCenter);
+                    for(vec4& vert :face){
+                        result.back().first.emplace_back(vert.x, vert.y,
+                                                         vert.z, vert.w);
                     }
+
                 }
             }
         };
