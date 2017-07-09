@@ -160,7 +160,7 @@ int main()
 
 
     WK4d::chunc4d<> chuncToSlice;
-    chuncToSlice.blockSize = 1/2.f;
+    chuncToSlice.blockSize = 1/8.f;
     for (int wi=0; wi<chuncToSlice.aSize; ++wi){
         for (int zi=0; zi<chuncToSlice.aSize; ++zi){
             for (int yi=0; yi<chuncToSlice.aSize; ++yi){
@@ -171,16 +171,19 @@ int main()
             }
         }
     }
-    for (int wi=0; wi<4; ++wi){
-        for (int zi=0; zi<4; ++zi){
-            for (int yi=0; yi<4; ++yi){
-                for (int xi=0; xi<4; ++xi){
-                    chuncToSlice.at(wi,zi,yi,xi)
-                            = WK4d::chunc4d<>::blocks::solid;
-                }
-            }
+    glm::ivec4 idx;
+    for (idx.w=0; idx.w<8; ++idx.w)
+        for (idx.z=0; idx.z<8; ++idx.z)
+            for (idx.y=0; idx.y<8; ++idx.y)
+                for (idx.x=0; idx.x<8; ++idx.x){
+
+        glm::vec4 posi = glm::vec4(idx) - glm::vec4(3.5);
+        if(glm::length(posi) <= 4.001){
+            chuncToSlice.at(idx)
+                    = WK4d::chunc4d<>::blocks::solid;
         }
     }
+
     for (int wi=0; wi<chuncToSlice.aSize; ++wi){
         chuncToSlice.at(wi,1,1,1)
                 = WK4d::chunc4d<>::blocks::air;
@@ -189,13 +192,14 @@ int main()
 
     float ang[6] = {0., 0., 0., 0., 0.};
     WK4d::SpaceSimPointOfView startMyCam;
-    startMyCam.myCoord = WK4d::vec4{0.f, 0.f, 0.f, 0.25f};
+//    startMyCam.myCoord = WK4d::vec4{0.501f, 0.501f, 0.501f, 0.501f};
+    startMyCam.myCoord = chuncToSlice.blockOriginAt(4,4,4,4);
 
 
 //    WK4d::AATesseract blockToSlice{1};
 //    blockToSlice.position = {-0.5, -0.5, -0.5, -0.5};
     WK4d::SpaceSimPointOfView my4dCam;
-    my4dCam.myCoord ={0.f, 0.f, 0.f, 1/4.0f};
+    my4dCam.myCoord = startMyCam.myCoord;
     while(!glfwWindowShouldClose(window))
     {
         //timey-whiney stuff

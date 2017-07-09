@@ -6,7 +6,9 @@ bool WK4d::plainIntersectsLineSegment(const WK4d::vec4 &p1, const WK4d::vec4 &p2
     //substituted in it
     bool p1Side = pl.A*p1.x + pl.B*p1.y + pl.C*p1.z + pl.D*p1.w + pl.E >= 0;
     bool p2Side = pl.A*p2.x + pl.B*p2.y + pl.C*p2.z + pl.D*p2.w + pl.E >= 0;
-    return p1Side != p2Side; //if dots at the different sides of plane, then
+    bool oneIsZero = (pl.A*p1.x + pl.B*p1.y + pl.C*p1.z + pl.D*p1.w + pl.E == 0)
+                   !=(pl.A*p2.x + pl.B*p2.y + pl.C*p2.z + pl.D*p2.w + pl.E == 0);
+    return p1Side != p2Side || oneIsZero; //if dots at the different sides of plane, then
     //line segment connecting these points intersects plane
 }
 
