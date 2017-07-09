@@ -25,6 +25,7 @@
 #include "wk4dmatrix5.h"
 #include "wk4dpointsofview.h"
 #include "wk4dgraphics.h"
+#include "chunc4d.h"
 
 using namespace std;
 
@@ -157,19 +158,44 @@ int main()
 
     });
 
+
+    WK4d::chunc4d<> chuncToSlice;
+    chuncToSlice.blockSize = 1/2.f;
+    for (int wi=0; wi<chuncToSlice.aSize; ++wi){
+        for (int zi=0; zi<chuncToSlice.aSize; ++zi){
+            for (int yi=0; yi<chuncToSlice.aSize; ++yi){
+                for (int xi=0; xi<chuncToSlice.aSize; ++xi){
+                    chuncToSlice.at(wi,zi,yi,xi)
+                            = WK4d::chunc4d<>::blocks::air;
+                }
+            }
+        }
+    }
+    for (int wi=0; wi<4; ++wi){
+        for (int zi=0; zi<4; ++zi){
+            for (int yi=0; yi<4; ++yi){
+                for (int xi=0; xi<4; ++xi){
+                    chuncToSlice.at(wi,zi,yi,xi)
+                            = WK4d::chunc4d<>::blocks::solid;
+                }
+            }
+        }
+    }
+    for (int wi=0; wi<chuncToSlice.aSize; ++wi){
+        chuncToSlice.at(wi,1,1,1)
+                = WK4d::chunc4d<>::blocks::air;
+    }
+
+
     float ang[6] = {0., 0., 0., 0., 0.};
     WK4d::SpaceSimPointOfView startMyCam;
-    //startMyCam.myCoord = WK4d::vec4{0.5, 0.5, 0.5, 0.5};
-    startMyCam.myCoord = WK4d::vec4{0., 0., 0., 0.};
-//    startMyCam.rotateForwardRight(glm::radians(45.f));
-//    startMyCam.rotateForwardUp(glm::radians(45.f));
-//    startMyCam.rotateRightAna(glm::radians(45.f));
-//    startMyCam.rotateUpAna(glm::radians(-45.f));
+    startMyCam.myCoord = WK4d::vec4{0.f, 0.f, 0.f, 1.0f};
 
 
-    WK4d::AATesseract blockToSlice{1};
-    blockToSlice.position = {-0.5, -0.5, -0.5, -0.5};
+//    WK4d::AATesseract blockToSlice{1};
+//    blockToSlice.position = {-0.5, -0.5, -0.5, -0.5};
     WK4d::SpaceSimPointOfView my4dCam;
+    my4dCam.myCoord ={0.f, 0.f, 0.f, 1/4.0f};
     while(!glfwWindowShouldClose(window))
     {
         //timey-whiney stuff
@@ -195,12 +221,12 @@ int main()
             anglespeed = 0.03;
         }
         my4dCam = startMyCam;
-//        my4dCam.rotateForwardAna(ang[3]);
-//        my4dCam.rotateRightAna(ang[5]);
-//        my4dCam.rotateUpAna(ang[4]);
-//        my4dCam.rotateForwardUp(ang[1]);
-//        my4dCam.rotateRightUp(ang[2]);
-//        my4dCam.rotateForwardRight(ang[0]);
+        my4dCam.rotateForwardAna(ang[3]);
+        my4dCam.rotateRightAna(ang[5]);
+        my4dCam.rotateUpAna(ang[4]);
+        my4dCam.rotateForwardUp(ang[1]);
+        my4dCam.rotateRightUp(ang[2]);
+        my4dCam.rotateForwardRight(ang[0]);
 
 
         if (pause){
@@ -218,33 +244,33 @@ int main()
         }
 
         if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
-            //my4dCam.rotateUpAna(anglespeed);
+            startMyCam.rotateUpAna(anglespeed);
         }
         if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
-            //my4dCam.rotateUpAna(-anglespeed);
+            startMyCam.rotateUpAna(-anglespeed);
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
             if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-                //my4dCam.rotateForwardAna(anglespeed);
+                startMyCam.rotateForwardAna(anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-                //my4dCam.rotateForwardAna(-anglespeed);
+                startMyCam.rotateForwardAna(-anglespeed);
             }
             my4dCam.normalize();
         }
         else if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
             if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-                //my4dCam.rotateRightAna(anglespeed);
+                startMyCam.rotateRightAna(anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-                //my4dCam.rotateRightAna(-anglespeed);
+                startMyCam.rotateRightAna(-anglespeed);
             }
         }else{
             if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
-                my4dCam.rotateForwardRight(anglespeed);
+                startMyCam.rotateForwardRight(anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
-                my4dCam.rotateForwardRight(-anglespeed);
+                startMyCam.rotateForwardRight(-anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
                 myCamera.moveForward(speed);
@@ -268,81 +294,41 @@ int main()
             my4dCam.normalize();
         }
 
+
 //        vector<vector<WK4d::vec4>> ans = WK4d::tesseractCrossSectionByHyperPlane(
 //                    blockToSlice, my4dCam.planeImOn);
 //        WK4d::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
-//        glm::vec3 figCenter{0,0,0};
-//        vector<glm::vec3> faceCenters;
-//        faceCenters.reserve(ans.size());
-//        {//calculating center of slice figure and individual faces
-//            int div=0;
-//            for (vector<WK4d::vec4>& face : ans){
-//                glm::vec3 faceCenter{0,0,0};
-//                int fdiv=0;
-//                for (WK4d::vec4& vert: face){
-//                    vert = tr*vert;
-//                    ++fdiv;
-//                    faceCenter+=glm::vec3{vert.x, vert.y,vert.z};
-//                }
-//                faceCenter/=fdiv;
-//                figCenter+=faceCenter;
-//                ++div;
-//                faceCenters.push_back(faceCenter);
-//            }
-//            figCenter /= div;
-//        }
-//        {//sorting verticles in faces to make the go CCW
-//            std::vector<std::pair<float, glm::vec3>> angsVerts;
-//            angsVerts.reserve(6);
-//            for (size_t i=0; i < ans.size(); ++i){
-//                angsVerts.resize(0);
-//                WK4d::vec4 const& b = ans[i][0];
-//                glm::vec3 faceCn = faceCenters[i];
-//                glm::vec3 lb = {b.x-faceCn.x, b.y-faceCn.y, b.z-faceCn.z};
-//                glm::vec3 lFigCn = figCenter-faceCn;
-//                lFigCn -= glm::proj(lFigCn, lb);
-//                lFigCn -= glm::proj(lFigCn,
-//                {ans[i][1].x-faceCn.x, ans[i][1].y-faceCn.y,
-//                 ans[i][1].z-faceCn.z});
-//                lFigCn = glm::normalize(lFigCn);
-//                auto ang = [&](WK4d::vec4 const& a){
-//                    glm::vec3 la = {a.x-faceCn.x, a.y-faceCn.y, a.z-faceCn.z};
-//                    glm::vec3 aCb= glm::cross(la, lb);
-//                    float tr = glm::dot(aCb, lFigCn);
-//                    float d = glm::dot(la, lb)
-//                            /(glm::length(la)*glm::length(lb));
-//                    float ang = std::acos(std::min(std::max(d, -1.f), 1.f));
-//                    if (tr>=0){
-//                        return ang;
-//                    }else{
-//                        return 2*glm::pi<float>() - ang;
-//                    }
-//                };
-//                for (WK4d::vec4& vert: ans[i]){
-//                    angsVerts.push_back(std::make_pair(ang(vert),
-//                                                       glm::vec3{vert.x, vert.y, vert.z}));
-//                }
-//                std::sort(angsVerts.begin(), angsVerts.end(),
-//                          [](auto const& f, auto const& s)->bool{
-//                    return f.first > s.first;
-//                });
-//                for (size_t j=0; j<ans[i].size(); ++j){
-//                    glm::vec3& v= angsVerts[j].second;
-//                    ans[i][j] = WK4d::vec4{v.x, v.y, v.z, 0};
-//                }
-//            }
-//        }
 
-        vector<vector<WK4d::vec4>> ans = WK4d::tesseractCrossSectionByHyperPlane(
-                    blockToSlice, my4dCam.planeImOn);
+//        glm::vec4 figCenter = glm::vec4(tr*(blockToSlice.position + (blockToSlice.size/2.f)));
+
+//        tempMesh.m_points.resize(0);
+//        tempMesh.m_indices.resize(0);
+
+//        size_t j = 0;
+//        for (vector<WK4d::vec4>& face: ans){
+//            tempMesh.m_points.resize(tempMesh.m_points.size() + face.size()*3);
+//            for (size_t i=0; i<face.size()*3; i+=3){
+//                face[i/3] = tr*face[i/3];
+//                tempMesh.m_points[j*3+i+0] = face[i/3].y;
+//                tempMesh.m_points[j*3+i+1] = face[i/3].z;
+//                tempMesh.m_points[j*3+i+2] = face[i/3].x;
+//            }
+//            vector<GLuint> toAdd= makeIndexArrayForFace(face, figCenter, j);
+//            tempMesh.m_indices.insert(tempMesh.m_indices.end(), toAdd.begin(), toAdd.end());
+//            j += face.size();
+//        }
+//        tempMesh.updateBufsInGPU(GL_STREAM_DRAW);
+
+        vector<std::pair<vector<glm::vec4>, glm::vec4>>
+                chuncSlice = chuncToSlice.getSlice(my4dCam.planeImOn);
         WK4d::matrix5x5 tr = my4dCam.getWorldToHyperplaneLocalTransformMatrix();
 
-        glm::vec4 figCenter = glm::vec4(tr*(blockToSlice.position + (blockToSlice.size/2.f)));
         tempMesh.m_points.resize(0);
         tempMesh.m_indices.resize(0);
-
         size_t j = 0;
-        for (vector<WK4d::vec4>& face: ans){
+        for (std::pair<vector<glm::vec4>, glm::vec4>& faceNback: chuncSlice){
+            vector<WK4d::vec4>& face = faceNback.first;
+            glm::vec4 figCenter = tr*faceNback.second;
             tempMesh.m_points.resize(tempMesh.m_points.size() + face.size()*3);
             for (size_t i=0; i<face.size()*3; i+=3){
                 face[i/3] = tr*face[i/3];
@@ -356,10 +342,6 @@ int main()
         }
         tempMesh.updateBufsInGPU(GL_STREAM_DRAW);
 
-
-
-
-
         view = glm::rotate(glm::mat4{}, -myCamera.pitch, glm::vec3{1.0f, 0.0f, 0.0f});
         view = glm::rotate(view, -myCamera.yaw, glm::vec3{0.0f, 1.0f, 0.0f});
         view = glm::translate(view, -myCamera.pos);
@@ -372,64 +354,6 @@ int main()
         glUseProgram(shadr.m_shaderProg);
         tempMesh.bind();
         glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
-
-
-
-//        glUseProgram(shadr.m_shaderProg);
-//        for (vector<WK4d::vec4>& face : ans){
-//            tempMesh.m_points.resize(face.size()*3);
-//            tempMesh.m_indices.resize((face.size()-2)*3);
-//            for (size_t i=0; i<face.size()*3; i+=3){
-//                //7face[i/3] = tr*face[i/3];
-//                tempMesh.m_points[i+0] = face[i/3].y;
-//                tempMesh.m_points[i+1] = face[i/3].z;
-//                tempMesh.m_points[i+2] = face[i/3].x;
-//                if (!WK4d::fuzzyEqual(face[i/3].w, 0)
-//                        && !std::isnan(face[i/3].w)){
-//                    cout << "f "<<face[i/3].w<<" ";
-//                }
-//            }
-//            for (size_t i=0; i<(face.size()-2)*3; i+=3){
-//                tempMesh.m_indices[i+0] = 0;
-//                tempMesh.m_indices[i+1] = i/3+1;
-//                tempMesh.m_indices[i+2] = i/3+2;
-//            }
-//            tempMesh.updateBufsInGPU(GL_STREAM_DRAW);
-//            tempMesh.bind();
-//            glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
-
-//            bool glitchOption_0 = false;
-//            if (glitchOption_0){ //рисуем в центре каждого фейса копию меша
-//                glm::vec3 fg = glm::vec3{figCenter.y, figCenter.z,
-//                                         figCenter.x};
-//                model = glm::mat4{1};
-//                model = glm::translate(model, fg);
-//                model = glm::scale(model, glm::vec3{0.1, 0.1, 0.1});
-//                GLint modelLoc= glGetUniformLocation(shadr.m_shaderProg, "model");
-//                glProgramUniformMatrix4fv(shadr.m_shaderProg, modelLoc,
-//                                          1, GL_FALSE, glm::value_ptr(model));
-//                glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
-//                for (int i=0; i<faceCenters.size(); ++i){
-//                    glm::vec3 vc = glm::vec3{faceCenters[i].y,
-//                                            faceCenters[i].z,
-//                                            faceCenters[i].x};
-
-//                    model = glm::mat4{1};
-//                    model = glm::translate(model, vc);
-//                    model = glm::scale(model, glm::vec3{0.1, 0.1, 0.1});
-//                    glProgramUniformMatrix4fv(shadr.m_shaderProg, modelLoc,
-//                                              1, GL_FALSE, glm::value_ptr(model));
-//                    glDrawElements(GL_TRIANGLES, tempMesh.m_indices.size(), GL_UNSIGNED_INT, 0);
-
-//                    //drawLine(fg, vc);
-//                }
-//                model = glm::mat4{1};
-//                glProgramUniformMatrix4fv(shadr.m_shaderProg, modelLoc,
-//                                        1, GL_FALSE, glm::value_ptr(model));
-
-//            }
-//        }
-
 
         glfwPollEvents();
         glfwSwapBuffers(window);

@@ -21,10 +21,23 @@ struct hash< array<T, N>  >
 {
     size_t operator () (array<T,N> const& key) const
     {
-        size_t result= std::hash<T>(key[0]);
+        size_t result= std::hash<T>()(key[0]);
         for (int i=1; i<N; ++i){
             result <<= 1;
-            result ^=  std::hash<T>(key[0]);
+            result ^=  std::hash<T>()(key[i]);
+        }
+        return result;
+    }
+};
+template<>
+struct hash< glm::ivec4  >
+{
+    size_t operator () (glm::ivec4 const& key) const
+    {
+        size_t result= std::hash<glm::ivec4::value_type>()(key[0]);
+        for (int i=1; i<4; ++i){
+            result <<= 1;
+            result ^=  std::hash<glm::ivec4::value_type>()(key[i]);
         }
         return result;
     }
@@ -43,21 +56,22 @@ struct chunc4d{
     glm::ivec4 offsetPos;
     float blockSize;
 
-    array<blocktype, S*S*S*S> m_content; //[w,z,y,x]
+    size_t aSize = S;
+    array<blocks, S*S*S*S> m_content; //[w,z,y,x]
     //
     constexpr inline
-    blocktype& at(size_t wi, size_t zi, size_t yi, size_t xi)
+    blocks& at(size_t wi, size_t zi, size_t yi, size_t xi)
     {
         assert(wi<S);assert(zi<S);assert(yi<S);assert(xi<S);
         return m_content.begin()[( S*S*S*wi + S*S*zi +S*yi + xi) ];
     }
     constexpr inline
-    blocktype& at(glm::ivec4 coord)
+    blocks& at(glm::ivec4 coord)
     {
         return at(coord.w, coord.z, coord.y, coord.x);
     }
     constexpr inline
-    blocktype const& at(size_t wi, size_t zi, size_t yi, size_t xi) const
+    blocks const& at(size_t wi, size_t zi, size_t yi, size_t xi) const
     {
         assert(wi<S);assert(zi<S);assert(yi<S);assert(xi<S);
         return m_content.begin()[( S*S*S*wi + S*S*zi +S*yi + xi) ];
@@ -74,6 +88,11 @@ struct chunc4d{
         return startCoord()+vec4(xi, yi, zi, wi)*blockSize;
     }
     constexpr inline
+    glm::vec4 blockOriginAt(glm::ivec4 coordIdx) const
+    {
+        return startCoord()+vec4(coordIdx)*blockSize;
+    }
+    constexpr inline
     glm::vec4 startCoord() const
     {
         return glm::vec4(offsetPos.x, offsetPos.y, offsetPos.z, offsetPos.w)*blockSize;
@@ -84,40 +103,44 @@ struct chunc4d{
         //returns vector of pairs, each pair contains
         //face as vector of points and center of tesseract, slice of which resulted in face
         vector<std::pair<vector<glm::vec4> , glm::vec4>> result;
-        std::unordered_set<array<blocktype, 4>> processedBlocks{};
+        std::unordered_set<glm::ivec4> processedBlocks{};
         //possiblySlicedByPlane contains array{x,y,z,w}
-        auto processBlock = [&](size_t wi, size_t zi, size_t yi, size_t xi)->void
+        auto processBlock = [&](glm::ivec4 coordIdx)->void
         {
-            bool alreadyProcessed = (processedBlocks.emplace(
-                                         array<blocktype, 4>{wi,zi,yi,xi}).second);
-            if(alreadyProcessed || wi >= S || zi >= S|| yi>=S||xi>=S){
+            if(    coordIdx.w >= S ||coordIdx.w <0
+                || coordIdx.z >= S ||coordIdx.z <0
+                || coordIdx.y >= S ||coordIdx.y <0
+                || coordIdx.x >= S ||coordIdx.x <0 ){
                 return;
             }
-            glm::ivec4 currentBlockIdx(xi, yi, zi, wi);
-            if(this->at(currentBlockIdx) == blocks::air){
+
+            bool alreadyProcessed = !(processedBlocks.emplace(
+                                        coordIdx).second);
+            if(alreadyProcessed || this->at(coordIdx) == blocks::air){
                 return;
             }
-            array<glm::ivec4,8> allDirectionVecs = {
+            array<glm::ivec4,8> allDirectionVecs = {{
                 {-1,0,0,0}, {1,0,0,0}, {0,-1,0,0}, {0,1,0,0},
                 {0,0,-1,0}, {0,0,1,0}, {0,0,0,-1}, {0,0,0,1}
-            };
+            }};
             AATesseract block{blockSize};
-            vec4 pos = blockOriginAt(wi, zi, yi, xi);
+            vec4 pos = blockOriginAt(coordIdx);
             block.position.x = pos.x; block.position.y = pos.y;
             block.position.z = pos.z; block.position.w = pos.w;
-            vec4 blockCenter = block.position + block.size/2;
+            vec4 blockCenter = block.position + block.size/2.f;
             for (int i=0; i<8; ++i){
-                directions iDir{i};
-                glm::ivec4 neighbourIdx = currentBlockIdx+allDirectionVecs[i];
+                directions iDir = static_cast<directions>(i);
+                glm::ivec4 neighbourIdx = coordIdx+allDirectionVecs[i];
                 bool idxInsideChunc = neighbourIdx[ int(axeOfDir(iDir))] < S
-                                && neighbourIdx[ int(axeOfDir(iDir))]>0;
+                                && neighbourIdx[ int(axeOfDir(iDir))]>=0;
                 if(!idxInsideChunc || this->at(neighbourIdx) == blocks::air ){
                     AACube cubeCell = block.getCubeCell(iDir);
                     vector<vec4> face = cubeCrossSectionByHyperPlane(cubeCell, plane);
-                    result.emplace_back({}, blockCenter);
-                    for(vec4& vert :face){
-                        result.back().first.emplace_back(vert.x, vert.y,
-                                                         vert.z, vert.w);
+                    if (!face.empty()){
+                        result.emplace_back(vector<vec4>{}, blockCenter);
+                        for(vec4& vert :face){
+                            result.back().first.emplace_back(vert);
+                        }
                     }
 
                 }
@@ -127,10 +150,10 @@ struct chunc4d{
         auto plNorm = plane.getNormal();
         array<size_t, 4> axe;
         {
-            array<std::pair<char, float const*>,4> normalDirs = {
+            array<std::pair<char, float const*>,4> normalDirs = {{
                 {0, &(plNorm.x)}, {1, &(plNorm.y)},
                 {2, &(plNorm.z)}, {3, &(plNorm.w)}
-            };
+            }};
             std::sort(normalDirs.begin(), normalDirs.end(),
                       [](std::pair<char, float const*>const& a,
                       std::pair<char, float const*>const& b){
@@ -141,42 +164,38 @@ struct chunc4d{
             }
         }
 
-        auto getCubeNthCoord=[&](array<int,4> &dimentions,
+        auto getCubeNthCoord=[&](glm::vec4& worldCoord,
                                   int whichDim)->float{
             //(plane.A*dimentions[0]
             //+ plane.B*dimentions[1]
             //+ plane.C*dimentions[2]
             //+ plane.D*dimentions[3]
             //+ plane.E) = 0
-            float result = (plane.A*dimentions[0]
-                    + plane.B*dimentions[1]
-                    + plane.C*dimentions[2]
-                    + plane.D*dimentions[3]
+            float result = (plane.A*worldCoord[0]
+                    + plane.B*worldCoord[1]
+                    + plane.C*worldCoord[2]
+                    + plane.D*worldCoord[3]
                     + plane.E);
-            result = -(result - plane.at(whichDim)*dimentions[whichDim]
+            result = -(result - plane.at(whichDim)*worldCoord[whichDim]
                        )/plane.at(whichDim);
             return result;
         };
-        array<int,4> dimIdx;//x y z w
-        array<int,4> coordDims;//x y z w
-        for (dimIdx[axe[0]]=0; dimIdx[axe[0]]<S; ++dimIdx[axe[0]] ){
-            for (dimIdx[axe[1]]=0; dimIdx[axe[1]]<S; ++dimIdx[axe[1]] ){
-                for (dimIdx[axe[2]]=0; dimIdx[axe[2]]<S; ++dimIdx[axe[2]] ){
-                    coordDims[axe[0]] = startCoord()[axe[0]]
-                                            + dimIdx[axe[0]]*blockSize;
-                    coordDims[axe[1]] = startCoord()[axe[1]]
-                                            + dimIdx[axe[1]]*blockSize;
-                    coordDims[axe[2]] = startCoord()[axe[2]]
-                                            + dimIdx[axe[2]]*blockSize;
-                    coordDims[axe[3]] = getCubeNthCoord(coordDims, axe[3]);
+        glm::vec4 worldCoords;
+        glm::ivec4 coordIdx;
+        for (coordIdx[axe[0]]=0; coordIdx[axe[0]]<S; ++coordIdx[axe[0]] ){
+            for (coordIdx[axe[1]]=0; coordIdx[axe[1]]<S; ++coordIdx[axe[1]] ){
+                for (coordIdx[axe[2]]=0; coordIdx[axe[2]]<S; ++coordIdx[axe[2]] ){
+
+                    worldCoords = startCoord()+vec4(coordIdx)*blockSize;
+                    worldCoords[axe[3]] = getCubeNthCoord(worldCoords, axe[3]);
                     //находим 4-ю координату блока через который проходит плоскость
                     //по 3м другим используя уравнение плоскости
-                    dimIdx[axe[3]] = (coordDims[axe[3]]-startCoord()[axe[3]])/blockSize;
-                    processBlock(dimIdx[0], dimIdx[1], dimIdx[2], dimIdx[3]);
-                    dimIdx[axe[3]] += 1;
-                    processBlock(dimIdx[0], dimIdx[1], dimIdx[2], dimIdx[3]);
-                    dimIdx[axe[3]] -= 2;
-                    processBlock(dimIdx[0], dimIdx[1], dimIdx[2], dimIdx[3]);
+                    coordIdx[axe[3]] = (worldCoords[axe[3]]-startCoord()[axe[3]])/blockSize;
+                    processBlock(coordIdx);
+                    coordIdx[axe[3]] += 1;
+                    processBlock(coordIdx);
+                    coordIdx[axe[3]] -= 2;
+                    processBlock(coordIdx);
                 }
             }
         }
