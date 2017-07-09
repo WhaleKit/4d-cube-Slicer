@@ -49,6 +49,40 @@ directions dirFromAxe(axes axe, bool codirected= true){
     return directions(static_cast<int>(axe)*2 + codirected);
 }
 
+inline
+glm::vec4 unitVec(axes axe)
+{
+    switch (axe){
+    case axes::x: return glm::vec4{1,0,0,0};
+    case axes::y: return glm::vec4{0,1,0,0};
+    case axes::z: return glm::vec4{0,0,1,0};
+    case axes::w: return glm::vec4{0,0,0,1};
+    }
+    if (numeric_limits<float>::has_signaling_NaN){
+        return glm::vec4{
+            numeric_limits<float>::signaling_NaN(),
+            numeric_limits<float>::signaling_NaN(),
+            numeric_limits<float>::signaling_NaN(),
+            numeric_limits<float>::signaling_NaN()
+        };
+    }else{
+        return glm::vec4{std::nanf("BadIdx"), std::nanf("BadIdx"),
+                    std::nanf("BadIdx"), std::nanf("BadIdx")};
+    }
+}
+
+inline
+glm::ivec4 unitIvec(axes axe)
+{
+    switch (axe){
+    case axes::x: return glm::ivec4{1,0,0,0};
+    case axes::y: return glm::ivec4{0,1,0,0};
+    case axes::z: return glm::ivec4{0,0,1,0};
+    case axes::w: return glm::ivec4{0,0,0,1};
+    }
+    throw std::invalid_argument("there's only 4 axes, idiot!");
+}
+
 
 //vectors
 
@@ -110,28 +144,6 @@ inline vec4 orthogonalToThree(vec4 const& v1, vec4 const& v2, vec4 const& v3)
         ,-v1.x*v2.y*v3.z + v1.x*v2.z*v3.y + v1.y*v2.x*v3.z -
                 v1.y*v2.z*v3.x - v1.z*v2.x*v3.y + v1.z*v2.y*v3.x
     };
-}
-
-inline
-vec4 unitVec(axes axe)
-{
-    switch (axe){
-    case axes::x: return vec4{1,0,0,0};
-    case axes::y: return vec4{0,1,0,0};
-    case axes::z: return vec4{0,0,1,0};
-    case axes::w: return vec4{0,0,0,1};
-    }
-    if (numeric_limits<float>::has_signaling_NaN){
-        return vec4{
-            numeric_limits<float>::signaling_NaN(),
-            numeric_limits<float>::signaling_NaN(),
-            numeric_limits<float>::signaling_NaN(),
-            numeric_limits<float>::signaling_NaN()
-        };
-    }else{
-        return vec4{std::nanf("BadIdx"), std::nanf("BadIdx"),
-                    std::nanf("BadIdx"), std::nanf("BadIdx")};
-    }
 }
 
 struct hyperPlane4

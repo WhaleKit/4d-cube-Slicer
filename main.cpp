@@ -96,7 +96,7 @@ int main()
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 projection;
-    model = glm::translate(model, glm::vec3(-0.5f, -0.5f, -0.5f));
+    //model = glm::translate(model, glm::vec3(-0.5f, -0.5f, -0.5f));
     projection = glm::perspective( glm::radians(45.0f) ,
                                    (GLfloat)width / (GLfloat)height,
                                    0.1f, 100.0f);
@@ -122,9 +122,9 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glFrontFace(GL_CCW);
-    glCullFace(GL_FRONT);
+//    glEnable(GL_CULL_FACE);
+//    glFrontFace(GL_CCW);
+//    glCullFace(GL_FRONT);
 
     std::chrono::time_point<std::chrono::system_clock> start, end;
     start = std::chrono::system_clock::now();
@@ -189,7 +189,7 @@ int main()
 
     float ang[6] = {0., 0., 0., 0., 0.};
     WK4d::SpaceSimPointOfView startMyCam;
-    startMyCam.myCoord = WK4d::vec4{0.f, 0.f, 0.f, 1.0f};
+    startMyCam.myCoord = WK4d::vec4{0.f, 0.f, 0.f, 0.25f};
 
 
 //    WK4d::AATesseract blockToSlice{1};
@@ -237,12 +237,10 @@ int main()
         }
         if(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS){
             startMyCam.myCoord.w += (speed/4);
-
         }
         if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS){
             startMyCam.myCoord.w -= (speed/4);
         }
-
         if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
             startMyCam.rotateUpAna(anglespeed);
         }
@@ -291,8 +289,8 @@ int main()
                     glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
                 myCamera.moveUp(-speed);
             }
-            my4dCam.normalize();
         }
+        my4dCam.normalize();
 
 
 //        vector<vector<WK4d::vec4>> ans = WK4d::tesseractCrossSectionByHyperPlane(
@@ -341,6 +339,18 @@ int main()
             j += face.size();
         }
         tempMesh.updateBufsInGPU(GL_STREAM_DRAW);
+
+
+        if(glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS){
+            auto tr = my4dCam.getHyperplaneLocalToWorldTransformMatrix();
+            glm::vec4 coord = tr*glm::vec4{myCamera.pos.z, myCamera.pos.x,
+                                                myCamera.pos.y, 0};
+            glm::ivec4 myBlock = chuncToSlice.coordToIndex(coord);
+            cout << "myBlock: "<<myBlock.x <<", "<<myBlock.y<<", "
+                 <<myBlock.z<<", "<< myBlock.w<<" "
+                 << (chuncToSlice.at(myBlock)==WK4d::chunc4d<>::blocks::solid) <<endl;
+        }
+
 
         view = glm::rotate(glm::mat4{}, -myCamera.pitch, glm::vec3{1.0f, 0.0f, 0.0f});
         view = glm::rotate(view, -myCamera.yaw, glm::vec3{0.0f, 1.0f, 0.0f});

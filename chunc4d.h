@@ -97,6 +97,19 @@ struct chunc4d{
     {
         return glm::vec4(offsetPos.x, offsetPos.y, offsetPos.z, offsetPos.w)*blockSize;
     }
+    constexpr inline
+    glm::ivec4 coordToIndex(glm::vec4 & coord)
+    {
+         glm::vec4 res = glm::vec4((coord-startCoord())/blockSize);
+         return glm::floor(res);
+    }
+    constexpr inline
+    int coordToIndex(float coord, axes ax)
+    {
+         return std::floor( (coord-startCoord()[static_cast<size_t>(ax)])
+                           /blockSize );
+    }
+
     //{left=0, rigth=1, back=2, front=3, down=4, up=5, kata=6, ana=7}
     vector<std::pair<vector<glm::vec4> , glm::vec4>> getSlice (hyperPlane4 const& plane)
     {
@@ -107,10 +120,10 @@ struct chunc4d{
         //possiblySlicedByPlane contains array{x,y,z,w}
         auto processBlock = [&](glm::ivec4 coordIdx)->void
         {
-            if(    coordIdx.w >= S ||coordIdx.w <0
-                || coordIdx.z >= S ||coordIdx.z <0
-                || coordIdx.y >= S ||coordIdx.y <0
-                || coordIdx.x >= S ||coordIdx.x <0 ){
+            if(    coordIdx.w >= S ||coordIdx.w < 0
+                || coordIdx.z >= S ||coordIdx.z < 0
+                || coordIdx.y >= S ||coordIdx.y < 0
+                || coordIdx.x >= S ||coordIdx.x < 0 ){
                 return;
             }
 
@@ -142,7 +155,6 @@ struct chunc4d{
                             result.back().first.emplace_back(vert);
                         }
                     }
-
                 }
             }
         };
@@ -157,14 +169,17 @@ struct chunc4d{
             std::sort(normalDirs.begin(), normalDirs.end(),
                       [](std::pair<char, float const*>const& a,
                       std::pair<char, float const*>const& b){
-                return (*(a.second) < *(b.second));
+                return (std::fabs(*(a.second))
+                         < std::fabs(*(b.second)));
             });
             for (int i=0; i<4; ++i){
                 axe[i] = (normalDirs[i].first);
             }
         }
 
-        auto getCubeNthCoord=[&](glm::vec4& worldCoord,
+        //находим n-ю координату блока через который проходит плоскость
+        //по 3м другим используя уравнение плоскости
+        auto getCubeNthCoord=[&](glm::vec4 const& worldCoord,
                                   int whichDim)->float{
             //(plane.A*dimentions[0]
             //+ plane.B*dimentions[1]
@@ -182,22 +197,45 @@ struct chunc4d{
         };
         glm::vec4 worldCoords;
         glm::ivec4 coordIdx;
-        for (coordIdx[axe[0]]=0; coordIdx[axe[0]]<S; ++coordIdx[axe[0]] ){
-            for (coordIdx[axe[1]]=0; coordIdx[axe[1]]<S; ++coordIdx[axe[1]] ){
+        for (coordIdx[axe[0]]=0; coordIdx[axe[0]]<S; ++coordIdx[axe[0]] )
+            for (coordIdx[axe[1]]=0; coordIdx[axe[1]]<S; ++coordIdx[axe[1]] )
                 for (coordIdx[axe[2]]=0; coordIdx[axe[2]]<S; ++coordIdx[axe[2]] ){
 
-                    worldCoords = startCoord()+vec4(coordIdx)*blockSize;
-                    worldCoords[axe[3]] = getCubeNthCoord(worldCoords, axe[3]);
-                    //находим 4-ю координату блока через который проходит плоскость
-                    //по 3м другим используя уравнение плоскости
-                    coordIdx[axe[3]] = (worldCoords[axe[3]]-startCoord()[axe[3]])/blockSize;
-                    processBlock(coordIdx);
-                    coordIdx[axe[3]] += 1;
-                    processBlock(coordIdx);
-                    coordIdx[axe[3]] -= 2;
-                    processBlock(coordIdx);
-                }
+            glm::vec4 u0 = unitVec(static_cast<axes>(axe[0]))*blockSize;
+            glm::vec4 u1 = unitVec(static_cast<axes>(axe[1]))*blockSize;
+            glm::vec4 u2 = unitVec(static_cast<axes>(axe[2]))*blockSize;
+            worldCoords = startCoord()+vec4(coordIdx)*blockSize;
+            //worldCoords[axe[3]] = getCubeNthCoord(worldCoords, axe[3]);
+            axes axe3 = static_cast<axes>(axe[3]);
+            float minCoord = startCoord()[axe[3]]
+                , maxCoord = startCoord()[axe[3]] + S*blockSize;
+
+            auto a = {getCubeNthCoord(worldCoords, axe[3]),
+                      getCubeNthCoord(worldCoords+u1, axe[3]),
+                      getCubeNthCoord(worldCoords+u2, axe[3]),
+                      getCubeNthCoord(worldCoords+u2+u1, axe[3]),
+                      getCubeNthCoord(worldCoords+u0, axe[3]),
+                      getCubeNthCoord(worldCoords+u0+u1, axe[3]),
+                      getCubeNthCoord(worldCoords+u0+u2, axe[3]),
+                      getCubeNthCoord(worldCoords+u0+u2+u1, axe[3])};
+            maxCoord = std::max(a);
+            minCoord = std::min(a);
+
+            int minIdx = std::max(coordToIndex(minCoord, axe3), 0);
+            int maxIdx = std::min(coordToIndex(maxCoord, axe3), int(S));
+            for (coordIdx[axe[3]] = minIdx;
+                coordIdx[axe[3]] <= maxIdx;
+                ++coordIdx[axe[3]] ){
+                processBlock(coordIdx);
             }
+
+//            coordIdx[axe[3]] = (worldCoords[axe[3]]-startCoord()[axe[3]]
+//                                )/blockSize;
+//            processBlock(coordIdx);
+//            coordIdx[axe[3]] += 1;
+//            processBlock(coordIdx);
+//            coordIdx[axe[3]] -= 2;
+//            processBlock(coordIdx);
         }
         return result;
     }

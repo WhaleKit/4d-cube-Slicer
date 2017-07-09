@@ -156,16 +156,16 @@ struct SpaceSimPointOfView
         //поворачиваем для pitch
         matrix5x5 transform = fromBasisToStandartRotationMatrix(myFront, getMyRigth(), myUp
                                                 ,glm::normalize(planeImOn.getNormal()));
-        transform = moveMatrix(myCoord)*transform;
+        transform = moveMatrix(-myCoord)*transform;
         return transform;
     }
     matrix5x5 getHyperplaneLocalToWorldTransformMatrix() const
     {
-        matrix5x5 transform = fromBasisToStandartRotationMatrix(myFront, getMyRigth()
+        matrix5x5 transform = toNewBasisRotationMatrix(
+                                        myFront, getMyRigth()
                                             , myUp
                                             ,glm::normalize(planeImOn.getNormal()))
                             *moveMatrix(myCoord);
-        //transform = *transform;
         return transform;
     }
     void normalize()
