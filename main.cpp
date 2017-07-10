@@ -97,7 +97,7 @@ int main()
     glm::mat4 view;
     glm::mat4 projection;
     //model = glm::translate(model, glm::vec3(-0.5f, -0.5f, -0.5f));
-    projection = glm::perspective( glm::radians(45.0f) ,
+    projection = glm::perspective( glm::radians(75.0f) ,
                                    (GLfloat)width / (GLfloat)height,
                                    0.1f, 100.0f);
     GLint modelLoc= glGetUniformLocation(shadr.m_shaderProg, "model");
@@ -178,7 +178,7 @@ int main()
                 for (idx.x=0; idx.x<8; ++idx.x){
 
         glm::vec4 posi = glm::vec4(idx) - glm::vec4(3.5);
-        if(glm::length(posi) <= 4.001){
+        if(glm::length(posi) <= 3.9/* && glm::length(posi) > 3.8*/){
             chuncToSlice.at(idx)
                     = WK4d::chunc4d<>::blocks::solid;
         }
@@ -191,15 +191,16 @@ int main()
 
 
     float ang[6] = {0., 0., 0., 0., 0.};
-    WK4d::SpaceSimPointOfView startMyCam;
+    float shift = 0;
+    WK4d::SpaceSimPointOfView World4dCenter;
 //    startMyCam.myCoord = WK4d::vec4{0.501f, 0.501f, 0.501f, 0.501f};
-    startMyCam.myCoord = chuncToSlice.blockOriginAt(4,4,4,4);
+    World4dCenter.myCoord = chuncToSlice.blockOriginAt(4,4,4,4);
 
 
 //    WK4d::AATesseract blockToSlice{1};
 //    blockToSlice.position = {-0.5, -0.5, -0.5, -0.5};
     WK4d::SpaceSimPointOfView my4dCam;
-    my4dCam.myCoord = startMyCam.myCoord;
+    my4dCam.myCoord = World4dCenter.myCoord;
     while(!glfwWindowShouldClose(window))
     {
         //timey-whiney stuff
@@ -224,7 +225,7 @@ int main()
             speed = 0.01;
             anglespeed = 0.03;
         }
-        my4dCam = startMyCam;
+        my4dCam = World4dCenter;
         my4dCam.rotateForwardAna(ang[3]);
         my4dCam.rotateRightAna(ang[5]);
         my4dCam.rotateUpAna(ang[4]);
@@ -233,46 +234,49 @@ int main()
         my4dCam.rotateForwardRight(ang[0]);
 
 
+        my4dCam.myCoord += my4dCam.planeImOn.getNormal()* shift;
+
+
         if (pause){
             //ang[1] += anglespeed*0.5;
-            ang[1] += anglespeed*0.25;
-            ang[3] -= anglespeed;
-            ang[4] -= anglespeed*0.5;
+            //ang[1] += anglespeed*0.5;
+            ang[0] -= anglespeed;
+            ang[2] -= anglespeed*0.5;
         }
         if(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS){
-            startMyCam.myCoord.w += (speed/4);
+            shift += (speed/4);
         }
         if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS){
-            startMyCam.myCoord.w -= (speed/4);
+           shift -= (speed/4);
         }
         if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS){
-            startMyCam.rotateUpAna(anglespeed);
+            World4dCenter.rotateUpAna(anglespeed);
         }
         if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS){
-            startMyCam.rotateUpAna(-anglespeed);
+            World4dCenter.rotateUpAna(-anglespeed);
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
             if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-                startMyCam.rotateForwardAna(anglespeed);
+                World4dCenter.rotateForwardAna(anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-                startMyCam.rotateForwardAna(-anglespeed);
+                World4dCenter.rotateForwardAna(-anglespeed);
             }
             my4dCam.normalize();
         }
         else if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
             if(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS){
-                startMyCam.rotateRightAna(anglespeed);
+                World4dCenter.rotateRightAna(anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-                startMyCam.rotateRightAna(-anglespeed);
+                World4dCenter.rotateRightAna(-anglespeed);
             }
         }else{
             if(glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS){
-                startMyCam.rotateForwardRight(anglespeed);
+                World4dCenter.rotateForwardRight(anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS){
-                startMyCam.rotateForwardRight(-anglespeed);
+                World4dCenter.rotateForwardRight(-anglespeed);
             }
             if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS){
                 myCamera.moveForward(speed);
