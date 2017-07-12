@@ -161,16 +161,6 @@ int main()
 
     WK4d::chunc4d<> chuncToSlice;
     chuncToSlice.blockSize = 1/8.f;
-    for (int wi=0; wi<chuncToSlice.aSize; ++wi){
-        for (int zi=0; zi<chuncToSlice.aSize; ++zi){
-            for (int yi=0; yi<chuncToSlice.aSize; ++yi){
-                for (int xi=0; xi<chuncToSlice.aSize; ++xi){
-                    chuncToSlice.at(wi,zi,yi,xi)
-                            = WK4d::chunc4d<>::blocks::air;
-                }
-            }
-        }
-    }
     glm::ivec4 idx;
     for (idx.w=0; idx.w<8; ++idx.w)
         for (idx.z=0; idx.z<8; ++idx.z)
@@ -181,6 +171,9 @@ int main()
         if(glm::length(posi) <= 3.9/* && glm::length(posi) > 3.8*/){
             chuncToSlice.at(idx)
                     = WK4d::chunc4d<>::blocks::solid;
+        }else{
+            chuncToSlice.at(idx)
+                    = WK4d::chunc4d<>::blocks::air;
         }
     }
 

@@ -267,7 +267,7 @@ std::vector<GLuint> makeIndexArrayForFace (std::vector<glm::vec4>const& face,
 
     angsVerts.push_back(std::make_pair(0.0, 0));
     glm::vec3 locA = face[0] - faceCenter;
-    for (int i=1; i<face.size(); ++i){
+    for (size_t i=1; i<face.size(); ++i){
         float angle;
         glm::vec3 locB = face[i] - faceCenter;
         glm::vec3 bCa= glm::cross(locB, locA);

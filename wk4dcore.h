@@ -163,6 +163,7 @@ struct hyperPlane4
         moveToContainPoint(point);
         //make plane containing point p perpendicular to normalVec
     }
+    inline
     void moveToContainPoint(vec4 point)
     {
         //constexpr-функция, которая меняет объект
@@ -171,38 +172,39 @@ struct hyperPlane4
         //убедитесь, что собираете это компилятором, поддерживающим c++14
         E = -(A*point.x + B*point.y + C*point.z + D*point.w);
     }
+    inline
     vec4 getNormal() const
     {
         return vec4{A,B,C,D};
     }
+    inline
     void setNormal(vec4 newNormal)
     {
         A = newNormal.x; B = newNormal.y;
         C = newNormal.z; D = newNormal.w;
     }
-
+    inline
     float& at(int i)
     {
+        assert(i>=0 && i<5);
         switch(i){
         case 0: return A;
         case 1: return B;
         case 2: return C;
         case 3: return D;
         case 4: return E;
-        default:
-            throw std::out_of_range("hyperPlane4 has only indexes in range [0, 5)");
         }
     }
+    inline
     float const& at(int i) const
     {
+        assert(i>=0 && i<5);
         switch(i){
         case 0: return A;
         case 1: return B;
         case 2: return C;
         case 3: return D;
         case 4: return E;
-        default:
-            throw std::out_of_range("hyperPlane4 has only indexes in range [0, 5)");
         }
     }
 
@@ -248,9 +250,7 @@ struct AACube
 
     array<vec4, 4> getSquarePoints(directions dir) const
     {
-        if (axeOfDir(dir) == perpendicularTo){
-            throw std::invalid_argument("this cube dont have square on that side");
-        }
+        assert(axeOfDir(dir) == perpendicularTo);
         axes ax = axeOfDir(dir); //нас интерсует квадрат
         array<axes, 2> dims; //направления, перпендикулярные dir и perpendicularTo
         for (int i = 0, j=0; i<4; ++i){

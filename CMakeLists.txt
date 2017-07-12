@@ -12,6 +12,7 @@ set(GLFW_LIBRARIES_DIR "NOT-DEFINED" CACHE PATH "your directory with GLFW buit l
 set(SOIL_INCLUDE_DIRS "NOT-DEFINED" CACHE PATH "your GLFW include directory")
 set(SOIL_LIBRARIES_DIR "NOT-DEFINED" CACHE PATH "your directory with GLFW buit libs")
 
+set(GLM_INCLUDE_DIR "NOT-DEFINED" CACHE PATH "your GLM include directory" )
 
 
 
@@ -20,6 +21,8 @@ LINK_DIRECTORIES(${GLEW_LIBRARIES_DIR})
 
 include_directories(${GLFW_INCLUDE_DIRS})
 LINK_DIRECTORIES(${GLFW_LIBRARIES_DIR})
+
+include_directories(${GLM_INCLUDE_DIR})
 
 include_directories(${SOIL_INCLUDE_DIRS})
 LINK_DIRECTORIES(${SOIL_LIBRARIES_DIR})
