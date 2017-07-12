@@ -11,7 +11,8 @@ results may look like this:<br>
 
 Dependencies: <br>
 GLM <br>
-GLWF <br>
+GLFW <br>
+GLEW <br>
 SOIL (not really for now)
 
 Acknowledgments: <br>
