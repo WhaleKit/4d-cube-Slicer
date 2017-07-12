@@ -1,5 +1,5 @@
 # 4d-cube-Slicer
-(not so) little quick project to learn opengl and cmake.
+Little and (not so) quick project to learn opengl and cmake.
 
 Shows a 3d slice of rotating/moving hypercube (aka tesseract aka 8-cell) in realtime. <br>
 Or slice of a bunch of 4d cubes in 4d grid.
