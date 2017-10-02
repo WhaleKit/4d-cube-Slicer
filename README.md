@@ -19,4 +19,4 @@ Acknowledgments: <br>
 https://learnopengl.com/  <br>
 Miegakure, main inspiration: https://www.youtube.com/watch?v=9yW--eQaA2I  <br>
 gliese1337, one of technical solutions taken from his post:  https://gliese1337.blogspot.fr/2017/01/implementing-4d-rotation.html  <br>
-SymPy, solved a lot of equasions: https://github.com/sympy/sympy
+SymPy, solved a lot of equations: https://github.com/sympy/sympy
